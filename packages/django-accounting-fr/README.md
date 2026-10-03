@@ -16,12 +16,12 @@ Elle ne dépend d'aucun autre module : le projet hôte lui décrit ses pièces
 ## Installation
 
 ```bash
-pip install "django-accounting-fr @ git+https://github.com/MatRai-hexa/django-compta-facturation-fr.git#subdirectory=packages/django-accounting-fr"      # ou depuis un dépôt Git / un index privé
+pip install django-accounting-fr      # ou depuis un dépôt Git / un index privé
 ```
 
 ```python
-INSTALLED_APPS = [..., "accounting"]
-urlpatterns = [..., path("comptabilite/", include("accounting.urls"))]
+INSTALLED_APPS = [..., "accounting_fr"]  # libellé d'application : « accounting »
+urlpatterns = [..., path("comptabilite/", include("accounting_fr.urls"))]
 ```
 
 ```bash
@@ -35,7 +35,7 @@ Les pages sont réservées aux utilisateurs ayant les permissions `accounting.*`
 ## API
 
 ```python
-from accounting import api
+from accounting_fr import api
 
 customer = api.Party("C042", "Dupont SARL")
 api.post_sale("invoice:F-001", day, "F-001", "Facture F-001", customer,
@@ -156,7 +156,7 @@ prorata temporis en jours, sur une année de 360 jours (`assets.schedule`), et �
 de la classe 2 (`assets.register_gaps`).
 
 ```python
-from accounting import assets
+from accounting_fr import assets
 
 assets.post_depreciations(exercice)        # dotations au dernier jour : 6811 / 28, ce qui reste dû (rattrapage compris)
 assets.dispose(immo, date, prix=None)      # dotation complémentaire, puis sortie : 28 + 675 / 2 ; prix en 462 / 775
@@ -173,7 +173,7 @@ Comptes de tiers (préfixes `ACCOUNTING["RECONCILABLE_PREFIXES"]`, 40 et 41 par 
 auxiliaire : `/lettrage/` (soldes par tiers), `/lettrage/<compte>/` (lettrage manuel), `/lettrage/balance-agee/`.
 
 ```python
-from accounting import reconciliation
+from accounting_fr import reconciliation
 
 reconciliation.auto_reconcile()               # même pièce, même référence, montant unique, tiers soldé
 code = reconciliation.reconcile([id1, id2])   # lignes équilibrées d'un même tiers -> "A", "B"… "AA"
@@ -198,7 +198,7 @@ Par journal de banque : `/banque/` (journaux, import, relevés), `/banque/<journ
 trésorerie du journal (`journal.account`, et `bank.journal_of(compte)` en sens inverse).
 
 ```python
-from accounting import bank
+from accounting_fr import bank
 
 result = bank.import_statement(account, contenu, "releve.ofx")  # CSV, OFX, CAMT.053, CFONB 120
 bank.auto_match(account)                     # même montant à 7 jours près, sans ambiguïté

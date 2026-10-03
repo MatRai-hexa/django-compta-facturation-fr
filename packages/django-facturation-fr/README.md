@@ -20,12 +20,12 @@ ventes via une API Python.
 ## Installation
 
 ```bash
-pip install "django-facturation-fr @ git+https://github.com/MatRai-hexa/django-compta-facturation-fr.git#subdirectory=packages/django-facturation-fr"
+pip install django-facturation-fr
 ```
 
 ```python
-INSTALLED_APPS = [..., "invoicing"]
-urlpatterns = [..., path("facturation/", include("invoicing.urls"))]
+INSTALLED_APPS = [..., "facturation_fr"]  # libellé d'application : « invoicing »
+urlpatterns = [..., path("facturation/", include("facturation_fr.urls"))]
 ```
 
 Pages réservées aux permissions `invoicing.*` ; le lien de téléchargement client
@@ -34,7 +34,7 @@ Pages réservées aux permissions `invoicing.*` ; le lien de téléchargement cl
 ## API
 
 ```python
-from invoicing import api
+from facturation_fr import api
 
 invoice = api.issue_invoice(
     "order:42",                                     # clé unique : rejouer renvoie la même facture

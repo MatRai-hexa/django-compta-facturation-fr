@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from accounting.chart import ACCOUNTS, JOURNALS, VAT_RATES, ensure_chart_of_accounts
-from accounting.models import Account
+from accounting_fr.chart import ACCOUNTS, JOURNALS, VAT_RATES, ensure_chart_of_accounts
+from accounting_fr.models import Account
 
 
 class Command(BaseCommand):

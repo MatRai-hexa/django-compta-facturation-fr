@@ -34,7 +34,7 @@ jobs:
       - run: pip install -e packages/django-accounting-fr -e packages/django-facturation-fr dj-database-url "psycopg[binary]>=3.2"
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
-      - run: python manage.py test accounting invoicing
+      - run: python manage.py test accounting_fr facturation_fr
 
   build:
     name: Construction des paquets
@@ -48,6 +48,6 @@ jobs:
       - run: python -m build packages/django-accounting-fr && python -m build packages/django-facturation-fr
       - name: Données embarquées (gabarits, schémas XSD, licence)
         run: |
-          python -m zipfile -l packages/django-accounting-fr/dist/*.whl | grep -q "accounting/templates/accounting/dashboard.html"
-          python -m zipfile -l packages/django-facturation-fr/dist/*.whl | grep -q "invoicing/xsd/ereporting/ereporting.xsd"
+          python -m zipfile -l packages/django-accounting-fr/dist/*.whl | grep -q "accounting_fr/templates/accounting/dashboard.html"
+          python -m zipfile -l packages/django-facturation-fr/dist/*.whl | grep -q "facturation_fr/xsd/ereporting/ereporting.xsd"
           python -m zipfile -l packages/django-facturation-fr/dist/*.whl | grep -q "LICENSE"

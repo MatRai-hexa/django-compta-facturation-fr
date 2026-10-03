@@ -8,7 +8,7 @@ comptable et les paramètres (comptes clients, ventes, TVA par taux...).
 Chaque pièce porte une clé unique (`key`) : la rejouer ne crée jamais de
 doublon. Exemple :
 
-    from accounting import api
+    from accounting_fr import api
 
     api.post_sale(
         key="invoice:F2026-001", date=day, reference="F2026-001", label="Facture F2026-001",

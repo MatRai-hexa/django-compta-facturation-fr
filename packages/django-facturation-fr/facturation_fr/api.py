@@ -1,7 +1,7 @@
 """
 API publique de la facturation.
 
-    from invoicing import api
+    from facturation_fr import api
 
     invoice = api.issue_invoice(
         key="order:42", buyer=api.Buyer("Camille Martin", "1 rue de la Paix", "75002", "Paris", email="c@ex.fr"),

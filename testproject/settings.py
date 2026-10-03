@@ -15,8 +15,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "accounting",
-    "invoicing",
+    "accounting_fr",
+    "facturation_fr",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

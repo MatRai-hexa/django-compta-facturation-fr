@@ -292,9 +292,9 @@ class IntegrationHooksTest(TestCase):
         detail = self.client.get(reverse("accounting:entry_detail", args=[self.txn.pk]))
         self.assertContains(detail, "invoice #1")
 
-    @override_settings(ACCOUNTING={"DOCUMENT_URL": "accounting.tests.fake_document_url",
-                                   "COMPANY": "accounting.tests.fake_company",
-                                   "DASHBOARD_PANELS": ["accounting.tests.fake_panels"]})
+    @override_settings(ACCOUNTING={"DOCUMENT_URL": "accounting_fr.tests.fake_document_url",
+                                   "COMPANY": "accounting_fr.tests.fake_company",
+                                   "DASHBOARD_PANELS": ["accounting_fr.tests.fake_panels"]})
     def test_project_hooks(self):
         detail = self.client.get(reverse("accounting:entry_detail", args=[self.txn.pk]))
         self.assertContains(detail, 'href="/pieces/invoice/1/"')
@@ -302,7 +302,7 @@ class IntegrationHooksTest(TestCase):
         fec = self.client.get(reverse("accounting:exports"), {"download": "fec"})
         self.assertIn("987654321FEC", fec["Content-Disposition"])
 
-    @override_settings(ACCOUNTING={"COMPANY": "accounting.tests.fake_company"})
+    @override_settings(ACCOUNTING={"COMPANY": "accounting_fr.tests.fake_company"})
     def test_settings_override_project_company(self):
         AccountingSettings.objects.filter(pk=1).update(siren="111222333")
         fec = self.client.get(reverse("accounting:exports"), {"download": "fec"})

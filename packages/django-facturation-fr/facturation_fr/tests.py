@@ -231,7 +231,7 @@ def project_seller():
     return SELLER_FROM_PROJECT
 
 
-@override_settings(INVOICING={"SELLER": "invoicing.tests.project_seller"})
+@override_settings(INVOICING={"SELLER": "facturation_fr.tests.project_seller"})
 class SellerSourceTest(TestCase):
     def test_project_values_by_default(self):
         from . import conf

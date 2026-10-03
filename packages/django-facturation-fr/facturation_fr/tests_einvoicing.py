@@ -83,7 +83,7 @@ class OutgoingTest(TestCase):
                          (lifecycle.DEPOSITED, "PA-123", True))
 
 
-@override_settings(MEDIA_ROOT=MEDIA, INVOICING={"ON_RECEIVED_STATUS": ["invoicing.tests_einvoicing.record_hook"]})
+@override_settings(MEDIA_ROOT=MEDIA, INVOICING={"ON_RECEIVED_STATUS": ["facturation_fr.tests_einvoicing.record_hook"]})
 class IncomingTest(TestCase):
     def setUp(self):
         RECEIVED.clear()

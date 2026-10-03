@@ -5,7 +5,7 @@ from django.db.models import Max
 
 
 def seal_existing(apps, schema_editor):
-    from accounting.seal import GENESIS, seal_existing as seal_all
+    from accounting_fr.seal import GENESIS, seal_existing as seal_all
 
     Transaction = apps.get_model("accounting", "Transaction")
     SealChain = apps.get_model("accounting", "SealChain")

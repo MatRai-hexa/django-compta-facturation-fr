@@ -6,7 +6,7 @@ Applique les règles de structure de l'article A47 A-1 du LPF et du BOI-CF-IOR-6
 le logiciel qui l'a produit. Il ne remplace pas cet outil officiel, ni la revue du
 contenu par l'expert-comptable.
 
-    from accounting.fec_check import check_fec
+    from accounting_fr.fec_check import check_fec
     report = check_fec(open("123456789FEC20261231.txt", "rb").read(), "123456789FEC20261231.txt")
     report.errors, report.warnings, report.stats
 """

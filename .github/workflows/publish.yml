@@ -1,0 +1,46 @@
+name: Publication sur PyPI
+
+# Publication par « Trusted Publishing » : PyPI fait confiance à ce workflow (environnement « pypi ») ;
+# aucun mot de passe ni jeton n'est stocké. Déclenchée par la création d'une release GitHub.
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Construction et contrôle des paquets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install build twine
+      - name: Version des paquets = étiquette de la release
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          for p in packages/*/pyproject.toml; do
+            grep -q "^version = \"$tag\"$" "$p" || { echo "::error::$p n'est pas en version $tag"; exit 1; }
+          done
+      - run: python -m build packages/django-accounting-fr --outdir dist && python -m build packages/django-facturation-fr --outdir dist
+      - run: twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Envoi sur PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/django-accounting-fr/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

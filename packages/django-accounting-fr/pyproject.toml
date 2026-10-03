@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-accounting-fr"
-version = "0.1.0"
+version = "0.2.0"
 description = "Comptabilité en partie double pour Django : plan comptable général français, journaux, TVA, FEC."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,7 +21,7 @@ Source = "https://github.com/MatRai-hexa/django-compta-facturation-fr"
 Issues = "https://github.com/MatRai-hexa/django-compta-facturation-fr/issues"
 
 [tool.setuptools.packages.find]
-include = ["accounting*"]
+include = ["accounting_fr*"]
 
 [tool.setuptools.package-data]
-accounting = ["templates/accounting/*.html"]
+accounting_fr = ["templates/accounting/*.html"]

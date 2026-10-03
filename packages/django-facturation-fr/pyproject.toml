@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-facturation-fr"
-version = "0.1.0"
+version = "0.2.0"
 description = "Facturation pour Django : factures et avoirs numérotés, mentions légales françaises, PDF et Factur-X (EN 16931)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,7 +21,7 @@ Source = "https://github.com/MatRai-hexa/django-compta-facturation-fr"
 Issues = "https://github.com/MatRai-hexa/django-compta-facturation-fr/issues"
 
 [tool.setuptools.packages.find]
-include = ["invoicing*"]
+include = ["facturation_fr*"]
 
 [tool.setuptools.package-data]
-invoicing = ["templates/invoicing/*.html", "xsd/ereporting/*.xsd", "xsd/ereporting/*.md"]
+facturation_fr = ["templates/invoicing/*.html", "xsd/ereporting/*.xsd", "xsd/ereporting/*.md"]
