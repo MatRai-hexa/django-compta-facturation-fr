@@ -1,0 +1,56 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Exercices{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-3">Exercices comptables</h1>
+
+<div class="glass-card mb-4">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Exercice</th><th>Du</th><th>Au</th><th>Statut</th><th></th></tr></thead>
+    <tbody>
+      {% for p in periods %}
+        <tr>
+          <td>{{ p.name }}</td><td>{{ p.date_start|date:"d/m/Y" }}</td><td>{{ p.date_end|date:"d/m/Y" }}</td>
+          <td>{% if p.is_closed %}<span class="badge bg-secondary">Clôturé le {{ p.closed_at|date:"d/m/Y" }}</span>{% if p.closing_seal %}<div class="small text-muted" title="{{ p.closing_seal }}">Sceau <code>{{ p.closing_seal|truncatechars:20 }}</code></div>{% endif %}{% else %}<span class="badge bg-success">Ouvert</span>{% endif %}</td>
+          <td class="text-end">
+            {% if perms.accounting.close_period %}
+              {% if not p.is_closed %}
+                <form method="post" action="{% url 'accounting:period_close' p.pk %}" class="d-inline"
+                      onsubmit="return confirm('Clôturer l\'exercice {{ p.name }} ? Plus aucune écriture ne pourra y être passée.');">{% csrf_token %}
+                  <button class="btn btn-sm btn-outline-warning">Clôturer</button>
+                </form>
+                <form method="post" action="{% url 'accounting:period_opening' p.pk %}" class="d-inline">{% csrf_token %}
+                  <button class="btn btn-sm btn-outline-light" title="Reprendre les soldes de l'exercice précédent clôturé">Générer les à-nouveaux</button>
+                </form>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-muted">Aucun exercice : il sera créé automatiquement (année civile) à la première écriture.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="small text-muted mt-3 mb-0">
+    Clôture : possible uniquement si toutes les écritures de l'exercice sont validées. Ensuite, générez dans l'exercice
+    suivant les à-nouveaux (soldes des comptes de bilan et résultat de l'exercice). La clôture scelle l'exercice :
+    <a href="{% url 'accounting:integrity' %}">vérifier l'intégrité des écritures</a>.
+  </p>
+</div>
+
+{% if perms.accounting.close_period %}
+<div class="glass-card">
+  <h2 class="h5">Créer un exercice</h2>
+  <p class="small text-muted">Nécessaire seulement pour un exercice non calé sur l'année civile.</p>
+  <form method="post" class="row g-2 align-items-end">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="col-12 alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="col-auto">{{ form.name.label_tag }} {{ form.name }}</div>
+    <div class="col-auto">{{ form.date_start.label_tag }} {{ form.date_start }}</div>
+    <div class="col-auto">{{ form.date_end.label_tag }} {{ form.date_end }}</div>
+    <div class="col-auto"><button class="btn btn-primary">Créer</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}{% if journal %}Journal {{ journal.code }}{% else %}Livre-journal{% endif %}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{% if journal %}Journal {{ journal.code }} — {{ journal.label }}{% else %}Livre-journal (tous les journaux){% endif %}</h1>
+    <div class="small text-muted">Du {{ start|date:"d/m/Y" }} au {{ end|date:"d/m/Y" }} · {{ totals.entries }} écriture{{ totals.entries|pluralize }}</div>
+  </div>
+  <div class="d-flex flex-wrap gap-2 no-print">
+    <select class="form-select form-select-sm w-auto" onchange="if (this.value) window.location = this.value + window.location.search.replace(/([?&])page=\d+&?/, '$1')">
+      <option value="{% url 'accounting:journal_all' %}">Tous les journaux</option>
+      {% for j in journals %}<option value="{% url 'accounting:journal_detail' j.code %}" {% if journal == j %}selected{% endif %}>{{ j }}</option>{% endfor %}
+    </select>
+    {% if journal and perms.accounting.change_journal %}<a class="btn btn-sm btn-outline-light" href="{% url 'accounting:journal_edit' journal.code %}">Modifier</a>{% endif %}
+    {% if perms.accounting.export_data %}
+      <a class="btn btn-sm btn-outline-light" href="?{{ request.GET.urlencode }}&format=xlsx">Excel</a>
+      <a class="btn btn-sm btn-outline-light" href="?{{ request.GET.urlencode }}&format=csv">CSV</a>
+    {% endif %}
+    <a class="btn btn-sm btn-outline-light" href="?{{ request.GET.urlencode }}&print=1" target="_blank" rel="noopener">Imprimer / PDF</a>
+  </div>
+</div>
+{% if not printing %}{% include "accounting/_period_filter.html" with show_validated=True %}{% endif %}
+{% if totals.drafts %}<div class="alert alert-warning small no-print">{{ totals.drafts }} écriture{{ totals.drafts|pluralize }} en brouillon : cochez « Validées uniquement » pour l'édition définitive.</div>{% endif %}
+
+<div class="glass-card">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Date</th>{% if not journal %}<th>Jnl</th>{% endif %}<th>Numéro</th><th>Pièce</th><th>Compte</th><th>Libellé</th><th class="text-end">Débit</th><th class="text-end">Crédit</th></tr></thead>
+      <tbody>
+        {% for item in book %}
+          {% for e in item.lines %}
+            <tr{% if forloop.first %} class="border-top"{% endif %}>
+              <td class="text-nowrap">{% if forloop.first %}{{ item.txn.date|date:"d/m/Y" }}{% endif %}</td>
+              {% if not journal %}<td>{% if forloop.first %}{{ item.txn.journal.code }}{% endif %}</td>{% endif %}
+              <td class="text-nowrap">{% if forloop.first %}<a href="{% url 'accounting:entry_detail' item.txn.pk %}">{{ item.txn.number|default:"brouillon" }}</a>{% endif %}</td>
+              <td class="small">{% if forloop.first %}{{ item.txn.reference }}{% endif %}</td>
+              <td class="text-nowrap">{{ e.account.code }}{% if e.auxiliary_code %} <span class="small text-muted">{{ e.auxiliary_code|truncatechars:24 }}</span>{% endif %}</td>
+              <td>{{ e.label|default:item.txn.description }}</td>
+              <td class="text-end">{% if e.debit %}{{ e.debit|floatformat:"2g" }}{% endif %}</td>
+              <td class="text-end">{% if e.credit %}{{ e.credit|floatformat:"2g" }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        {% empty %}
+          <tr><td colspan="8" class="text-muted">Aucune écriture sur la période.</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold"><td colspan="{% if journal %}5{% else %}6{% endif %}">Total de la période</td>
+          <td class="text-end">{{ totals.debit|floatformat:"2g" }}</td><td class="text-end">{{ totals.credit|floatformat:"2g" }}</td></tr>
+      </tfoot>
+    </table>
+  </div>
+  {% if page.has_other_pages %}
+  <nav class="d-flex justify-content-between small mt-2 no-print">
+    <span class="text-muted">Écritures {{ page.start_index }} à {{ page.end_index }} sur {{ page.paginator.count }}</span>
+    <span>
+      {% if page.has_previous %}<a href="{% querystring page=page.previous_page_number %}">« Précédentes</a>{% endif %}
+      {% if page.has_next %}<a class="ms-3" href="{% querystring page=page.next_page_number %}">Suivantes »</a>{% endif %}
+    </span>
+  </nav>
+  {% endif %}
+</div>
+{% if printing %}<script>window.addEventListener("load", () => window.print());</script>{% endif %}
+{% endblock %}

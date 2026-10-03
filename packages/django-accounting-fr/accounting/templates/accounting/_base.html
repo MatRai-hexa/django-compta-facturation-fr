@@ -1,0 +1,43 @@
+{% extends base_template|default:"accounting/standalone_base.html" %}
+
+{% block title %}{% block page_title %}Comptabilité{% endblock %}{% endblock %}
+
+{% block content %}
+<style>
+  /* Impression (et « Enregistrer en PDF ») : seulement l'état, sans menus ni filtres */
+  @media print {
+    .bo-sidebar, .bo-topbar, .bo-sticky-actions, .accounting > nav, .no-print, form { display: none !important; }
+    body, .bo-main, .glass-card, .bo-card { background: #fff !important; color: #000 !important; box-shadow: none !important; }
+    .bo-main { margin: 0 !important; padding: 0 !important; }
+    table { font-size: 10px; } tr { break-inside: avoid; } thead { display: table-header-group; }
+    a { color: #000 !important; text-decoration: none !important; }
+  }
+</style>
+<div class="accounting">
+  <nav class="d-flex flex-wrap gap-2 mb-4 small">
+    {% url 'accounting:dashboard' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Tableau de bord</a>
+    {% url 'accounting:entry_list' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Écritures</a>
+    {% if perms.accounting.add_transaction %}
+      {% url 'accounting:entry_create' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Saisir</a>
+    {% endif %}
+    {% if perms.accounting.view_reports %}
+      {% url 'accounting:journals' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Journaux</a>
+      {% url 'accounting:reconciliation' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Lettrage</a>
+      {% url 'accounting:bank_index' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Banque</a>
+      {% url 'accounting:trial_balance' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Balance</a>
+      {% url 'accounting:ledger_index' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Grand livre</a>
+      {% url 'accounting:profit_loss' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Résultat</a>
+      {% url 'accounting:balance_sheet' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Bilan</a>
+      {% url 'accounting:annual_accounts' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Comptes annuels</a>
+      {% url 'accounting:analytic' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Analytique</a>
+      {% if perms.accounting.view_fixedasset %}{% url 'accounting:fixed_assets' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Immobilisations</a>{% endif %}
+      {% url 'accounting:vat_report' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">TVA</a>
+    {% endif %}
+    {% if perms.accounting.export_data %}
+      {% url 'accounting:exports' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Exports / FEC</a>
+    {% endif %}
+    {% url 'accounting:periods' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Exercices</a>
+  </nav>
+  {% block accounting_content %}{% endblock %}
+</div>
+{% endblock %}

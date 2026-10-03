@@ -1,0 +1,71 @@
+{% extends "invoicing/_base.html" %}
+{% block page_title %}Facturation électronique{% endblock %}
+{% block invoicing_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Plateforme et e-reporting</h1>
+    <div class="small text-muted">Plateforme : <strong>{{ platform.label }}</strong>{% if perms.invoicing.change_invoicingsettings %} · <a href="{% url 'invoicing:settings' %}">changer</a>{% endif %} — {{ platform.description }}</div>
+  </div>
+  {% if perms.invoicing.add_invoice %}<form method="post" action="{% url 'invoicing:sync' %}">{% csrf_token %}<button class="btn btn-sm btn-primary">Synchroniser maintenant</button></form>{% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3"><div class="glass-card"><div class="small text-muted">À transmettre</div><div class="h4 mb-0">{{ pending|add:to_deposit }}</div></div></div>
+  <div class="col-md-3"><div class="glass-card"><div class="small text-muted">Rejetées ou refusées</div><div class="h4 mb-0 {% if rejected %}text-danger{% endif %}">{{ rejected }}</div></div></div>
+  <div class="col-md-3"><div class="glass-card"><div class="small text-muted">Factures reçues à traiter</div><div class="h4 mb-0"><a href="{% url 'invoicing:incoming_list' %}">{{ incoming_open }}</a></div></div></div>
+  <div class="col-md-3"><div class="glass-card"><div class="small text-muted">E-reporting · {{ regime }}</div><div class="small mb-0">Transactions par {% if periods.transactions == "decade" %}décade{% elif periods.transactions == "bimonth" %}bimestre{% else %}mois{% endif %}, encaissements par {% if periods.payments == "bimonth" %}bimestre{% else %}mois{% endif %}</div></div></div>
+</div>
+
+<div class="glass-card mb-3">
+  <h2 class="h5">Factures électroniques émises (clients professionnels)</h2>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Facture</th><th>Client</th><th class="text-end">TTC</th><th>Statut</th><th>Encaissement</th><th></th></tr></thead>
+    <tbody>{% for t in transmissions %}
+      <tr>
+        <td><a href="{% url 'invoicing:detail' t.invoice.pk %}">{{ t.invoice.number }}</a></td>
+        <td>{{ t.invoice.buyer_name }} <span class="small text-muted">{{ t.invoice.buyer_siren }}</span></td>
+        <td class="text-end">{{ t.invoice.total_ttc|floatformat:"2g" }} €</td>
+        <td>{% if t.status == 213 or t.status == 210 %}<span class="text-danger">{{ t.status_label }}</span>{% else %}{{ t.status_label }}{% endif %}{% if t.error %}<div class="small text-danger">{{ t.error }}</div>{% endif %}</td>
+        <td class="small">{% if t.payment_reported %}Transmis{% elif t.invoice.paid_at %}À transmettre{% else %}—{% endif %}</td>
+        <td class="text-end">
+          {% if not platform.automatic and perms.invoicing.add_invoice %}
+            <form method="post" action="{% url 'invoicing:transmission_status' t.pk %}" class="d-flex gap-1 justify-content-end">{% csrf_token %}
+              <a class="btn btn-sm btn-outline-light" href="{% url 'invoicing:pdf' t.invoice.pk %}?download=1">Factur-X</a>
+              <select name="status" class="form-select form-select-sm w-auto">
+                <option value="">Déposée</option><option value="213">Rejetée</option><option value="210">Refusée</option>
+                <option value="205">Approuvée</option><option value="207">En litige</option></select>
+              <button class="btn btn-sm btn-outline-primary">Enregistrer</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}<tr><td colspan="6" class="text-muted small">Aucune facture électronique : seules les factures à des professionnels établis en France (SIREN renseigné) en sont.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+
+<div class="glass-card">
+  <h2 class="h5">E-reporting (flux 10 : ventes aux particuliers et aux professionnels étrangers)</h2>
+  {% if ereporting_problem %}<div class="alert alert-warning small">{{ ereporting_problem }}{% if perms.invoicing.change_invoicingsettings %} <a href="{% url 'invoicing:settings' %}">Paramètres</a>{% endif %}</div>{% endif %}
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Période</th><th>Données</th><th class="text-end">Base HT</th><th class="text-end">TVA</th><th class="text-end">Encaissé</th><th>Transmission</th><th></th></tr></thead>
+    <tbody>{% for r in reports %}
+      <tr><td>du {{ r.period_start|date:"d/m/Y" }} au {{ r.period_end|date:"d/m/Y" }}</td>
+        <td>{{ r.get_kind_display }}{% if r.type_code == "RE" %} <span class="badge text-bg-warning">rectificative v{{ r.version }}</span>{% endif %}</td>
+        <td class="text-end">{% if r.kind == "transactions" %}{{ r.total_ht|floatformat:"2g" }} €{% else %}—{% endif %}</td>
+        <td class="text-end">{% if r.kind == "transactions" %}{{ r.total_vat|floatformat:"2g" }} €{% else %}—{% endif %}</td>
+        <td class="text-end">{% if r.kind == "payments" %}{{ r.total_paid|floatformat:"2g" }} €{% else %}—{% endif %}</td>
+        <td class="small">{% if r.transmitted_at %}le {{ r.transmitted_at|date:"d/m/Y" }}{% elif r.error %}<span class="text-danger">{{ r.error }}</span>{% else %}à transmettre{% endif %}</td>
+        <td class="text-end text-nowrap">{% if r.xml %}<a class="small" href="{% url 'invoicing:ereport_download' r.pk %}">XML</a> · {% endif %}<a class="small" href="{% url 'invoicing:ereport_download' r.pk %}?format=csv">CSV</a>
+          {% if not r.transmitted_at and r.xml and perms.invoicing.add_invoice %}
+            <form method="post" action="{% url 'invoicing:ereport_transmit' r.pk %}" class="d-inline ms-2">{% csrf_token %}
+              <button class="btn btn-sm btn-outline-primary">{% if platform.automatic %}Transmettre{% else %}Marquer transmis{% endif %}</button></form>
+          {% endif %}</td></tr>
+    {% empty %}<tr><td colspan="7" class="text-muted small">Aucune période close à déclarer pour le moment.</td></tr>{% endfor %}</tbody>
+  </table>
+  <p class="small text-muted mt-2 mb-0">Format officiel de la DGFiP (spécifications externes v3.2), validé contre le schéma XSD. Transactions :
+    ventes aux particuliers par jour, catégorie et taux, avoirs déduits ; factures aux professionnels étrangers une à une.
+    Encaissements : prestations de services seulement (sauf option pour la TVA sur les débits). Une période déjà transmise
+    dont les données changent est retransmise en rectificative.{% if not platform.automatic %} En dépôt manuel, téléchargez le XML,
+    déposez-le sur le portail de votre plateforme agréée, puis marquez-le transmis.{% endif %}</p>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Pointage {{ journal.code }}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Pointage — journal {{ journal.code }} {{ journal.label }}</h1>
+    <div class="small text-muted"><a href="{% url 'accounting:bank_index' %}">‹ Rapprochement bancaire</a>
+      · compte {{ account.code }} {{ account.name }} · solde comptable {{ summary.balance|floatformat:"2g" }} €{% if summary.last %} · dernier relevé au {{ summary.last.date_end|date:"d/m/Y" }}{% endif %}</div>
+  </div>
+  <div class="d-flex gap-2 align-items-center no-print">
+    <form method="get"><div class="form-check small mb-0">
+      <input class="form-check-input" type="checkbox" name="all" value="1" id="all" {% if show_all %}checked{% endif %} onchange="this.form.submit()">
+      <label class="form-check-label" for="all">Afficher aussi les lignes pointées</label></div></form>
+    <a class="btn btn-sm btn-outline-light" href="{% url 'accounting:bank_state' journal.code %}">État de rapprochement</a>
+    {% if perms.accounting.reconcile_bank %}
+      <form method="post">{% csrf_token %}<button class="btn btn-sm btn-primary" name="action" value="auto"
+        title="Même montant à 7 jours près, sans ambiguïté">Pointage automatique</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{% if prior and perms.accounting.reconcile_bank %}
+  <form method="post" class="alert alert-info small d-flex flex-wrap justify-content-between align-items-center gap-2">{% csrf_token %}
+    <span>{{ prior }} écriture{{ prior|pluralize }} antérieure{{ prior|pluralize }} au premier relevé importé ne figurer{{ prior|pluralize:"a,ont" }} sur aucune opération :
+      elle{{ prior|pluralize }} {{ prior|pluralize:"est,sont" }} déjà dans son solde initial.</span>
+    <span class="d-flex gap-2 align-items-center"><input type="hidden" name="action" value="prior">
+      <label for="until" class="text-nowrap">jusqu'au</label>
+      <input type="date" name="until" id="until" value="{{ prior_until|date:'Y-m-d' }}" class="form-control form-control-sm w-auto">
+      <button class="btn btn-sm btn-outline-primary text-nowrap">Les pointer</button></span>
+  </form>
+{% endif %}
+
+<form method="post" id="match-form">{% csrf_token %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h6">Relevé de la banque <span class="text-muted small">({{ lines.paginator.count }})</span></h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th style="width:2rem"></th><th>Date</th><th>Libellé</th><th class="text-end">Montant</th></tr></thead>
+          <tbody>
+            {% for l in lines %}
+              <tr>
+                <td>{% if not l.match_id %}<input class="form-check-input js-bank" type="checkbox" name="lines" value="{{ l.pk }}" data-amount="{{ l.amount|stringformat:'s' }}" aria-label="Sélectionner">{% endif %}</td>
+                <td class="small text-nowrap">{{ l.date|date:"d/m/Y" }}</td>
+                <td class="small">{{ l.label }}{% if l.reference %} <span class="text-muted">{{ l.reference }}</span>{% endif %}
+                  {% if l.match_id %}<div class="text-success">pointée{% if perms.accounting.reconcile_bank %} · <button class="btn btn-link btn-sm p-0 align-baseline" name="unmatch" value="{{ l.match_id }}" onclick="return confirm('Défaire ce pointage ?');">dépointer</button>{% endif %}</div>
+                  {% elif perms.accounting.add_transaction and perms.accounting.validate_transaction and perms.accounting.reconcile_bank %}
+                    <details class="mt-1 no-print"><summary class="text-primary" style="cursor:pointer">Comptabiliser</summary>
+                      <div class="d-grid gap-1 mt-1" style="max-width:20rem">
+                        <select name="counterpart" form="entry-{{ l.pk }}" class="form-select form-select-sm" aria-label="Contrepartie">
+                          {% for a in counterparts %}<option value="{{ a.pk }}" {% if a == default_counterpart %}selected{% endif %}>{{ a.code }} {{ a.name|truncatechars:24 }}</option>{% endfor %}
+                        </select>
+                        <input name="auxiliary_code" form="entry-{{ l.pk }}" list="tiers-codes" class="form-control form-control-sm" placeholder="Tiers (40/41)" aria-label="Tiers">
+                        <input name="label" form="entry-{{ l.pk }}" value="{{ l.label|truncatechars:200 }}" class="form-control form-control-sm" aria-label="Libellé">
+                        <button form="entry-{{ l.pk }}" class="btn btn-sm btn-outline-primary">Passer l'écriture et pointer</button>
+                      </div>
+                    </details>
+                  {% endif %}</td>
+                <td class="text-end text-nowrap {% if l.amount < 0 %}text-danger{% endif %}">{{ l.amount|floatformat:"2g" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted small">Aucune opération à pointer. <a href="{% url 'accounting:bank_index' %}">Importer un relevé</a>.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h6">Comptabilité <span class="text-muted small">({{ ledger.paginator.count }})</span></h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th style="width:2rem"></th><th>Date</th><th>Écriture</th><th class="text-end">Montant</th></tr></thead>
+          <tbody>
+            {% for e in ledger %}
+              <tr>
+                <td>{% if not e.bank_match_id %}<input class="form-check-input js-entry" type="checkbox" name="entries" value="{{ e.pk }}" data-amount="{% if e.debit %}{{ e.debit|stringformat:'s' }}{% else %}-{{ e.credit|stringformat:'s' }}{% endif %}" aria-label="Sélectionner">{% endif %}</td>
+                <td class="small text-nowrap">{{ e.transaction.date|date:"d/m/Y" }}</td>
+                <td class="small"><a href="{% url 'accounting:entry_detail' e.transaction_id %}">{{ e.transaction.number }}</a> {{ e.label }}
+                  {% if e.transaction.reference %}<span class="text-muted">{{ e.transaction.reference }}</span>{% endif %}
+                  {% if e.bank_match_id %}<div class="text-success">pointée{% if perms.accounting.reconcile_bank %} · <button class="btn btn-link btn-sm p-0 align-baseline" name="unmatch" value="{{ e.bank_match_id }}" onclick="return confirm('Défaire ce pointage ?');">dépointer</button>{% endif %}</div>{% endif %}</td>
+                <td class="text-end text-nowrap {% if e.credit %}text-danger{% endif %}">{% if e.debit %}{{ e.debit|floatformat:"2g" }}{% else %}-{{ e.credit|floatformat:"2g" }}{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted small">Aucune écriture non pointée.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if lines.has_other_pages or ledger.has_other_pages %}
+  <div class="d-flex gap-2 mt-2 small">
+    {% if lines.has_previous or ledger.has_previous %}<a href="?{% if show_all %}all=1&{% endif %}page={{ lines.number|add:-1 }}">‹ Précédentes</a>{% endif %}
+    <span class="text-muted">Page {{ lines.number }}</span>
+    {% if lines.has_next or ledger.has_next %}<a href="?{% if show_all %}all=1&{% endif %}page={{ lines.number|add:1 }}">Suivantes ›</a>{% endif %}
+  </div>
+{% endif %}
+
+{% if perms.accounting.reconcile_bank %}
+<div class="glass-card bo-sticky-actions d-flex flex-wrap align-items-center gap-3 mt-3 no-print">
+  <div class="small">Relevé <strong id="sel-bank">0,00</strong> · comptabilité <strong id="sel-entry">0,00</strong> · écart <strong id="sel-gap">0,00</strong></div>
+  <button class="btn btn-sm btn-primary ms-auto" name="action" value="match" id="btn-match" disabled>Pointer</button>
+  <div class="w-100 small text-muted d-none d-md-block">Cochez une ou plusieurs opérations du relevé et les lignes d'écriture correspondantes, de même total
+    (ex. une remise de chèques). Une opération sans écriture (frais, prélèvement, règlement fournisseur) se comptabilise depuis le relevé.</div>
+</div>
+{% endif %}
+</form>
+
+{% for l in lines %}{% if not l.match_id %}
+  <form method="post" id="entry-{{ l.pk }}" class="d-none">{% csrf_token %}<input type="hidden" name="action" value="entry"><input type="hidden" name="line" value="{{ l.pk }}"></form>
+{% endif %}{% endfor %}
+<datalist id="tiers-codes">{% for code, label in tiers.items %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</datalist>
+
+<script>
+(function () {
+  const cents = (value) => Math.round(parseFloat(value || "0") * 100);
+  const fmt = (c) => (c / 100).toLocaleString("fr-FR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const bankBoxes = document.querySelectorAll(".js-bank"), entryBoxes = document.querySelectorAll(".js-entry");
+  function total(boxes) { let sum = 0, count = 0; boxes.forEach((b) => { if (b.checked) { sum += cents(b.dataset.amount); count++; } }); return [sum, count]; }
+  function update() {
+    const [bankSum, bankCount] = total(bankBoxes), [entrySum, entryCount] = total(entryBoxes);
+    if (!document.getElementById("sel-bank")) return;
+    document.getElementById("sel-bank").textContent = fmt(bankSum);
+    document.getElementById("sel-entry").textContent = fmt(entrySum);
+    const gap = document.getElementById("sel-gap");
+    gap.textContent = fmt(Math.abs(bankSum - entrySum));
+    gap.className = bankSum === entrySum ? "text-success" : "text-warning";
+    document.getElementById("btn-match").disabled = !bankCount || !entryCount || bankSum !== entrySum;
+  }
+  [...bankBoxes, ...entryBoxes].forEach((b) => b.addEventListener("change", update));
+  update();
+})();
+</script>
+{% endblock %}

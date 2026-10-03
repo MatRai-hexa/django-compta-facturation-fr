@@ -1,0 +1,39 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Écritures{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Écritures</h1>
+  {% if perms.accounting.add_transaction %}<a class="btn btn-primary btn-sm" href="{% url 'accounting:entry_create' %}">Nouvelle écriture</a>{% endif %}
+</div>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="journal" class="form-select form-select-sm">
+      <option value="">Tous les journaux</option>
+      {% for j in journals %}<option value="{{ j.code }}" {% if journal == j.code %}selected{% endif %}>{{ j }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select name="status" class="form-select form-select-sm">
+      <option value="">Tous les statuts</option>
+      <option value="draft" {% if status == "draft" %}selected{% endif %}>Brouillons</option>
+      <option value="validated" {% if status == "validated" %}selected{% endif %}>Validées</option>
+    </select>
+  </div>
+  <div class="col-auto"><input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Numéro, libellé, pièce…"></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Filtrer</button></div>
+</form>
+
+<div class="glass-card">
+  {% include "accounting/_entries_table.html" with entries=page_obj %}
+  {% if page_obj.has_other_pages %}
+    <div class="d-flex gap-2 mt-3 small">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&journal={{ journal|default:'' }}&status={{ status|default:'' }}&q={{ q|urlencode }}">« Précédentes</a>{% endif %}
+      <span>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&journal={{ journal|default:'' }}&status={{ status|default:'' }}&q={{ q|urlencode }}">Suivantes »</a>{% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

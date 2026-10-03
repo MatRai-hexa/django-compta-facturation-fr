@@ -1,0 +1,78 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Écriture {{ txn.number|default:txn.pk }}{% endblock %}
+
+{% block accounting_content %}
+<div class="glass-card mb-4">
+  <div class="d-flex justify-content-between flex-wrap gap-2">
+    <div>
+      <h1 class="h4 mb-1">{{ txn.description|default:txn.get_type_display }}</h1>
+      <div class="small text-muted">
+        {{ txn.journal }} · {{ txn.date|date:"d/m/Y" }} · exercice {{ txn.fiscal_period.name }}
+        {% if txn.reference %} · pièce {{ txn.reference }}{% endif %}
+        {% if txn.document_type %} · {% if document_url %}<a href="{{ document_url }}">{{ txn.document_type }} #{{ txn.document_id }}</a>{% else %}{{ txn.document_type }} #{{ txn.document_id }}{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="text-end">
+      {% if txn.is_validated %}
+        <span class="badge bg-success fs-6">{{ txn.number }}</span>
+        <div class="small text-muted mt-1">Validée le {{ txn.validated_at|date:"d/m/Y H:i" }}{% if txn.validated_by %} par {{ txn.validated_by }}{% endif %}</div>
+        {% if txn.seal %}<div class="small text-muted" title="Empreinte SHA-256 (maillon {{ txn.seal_index }} de la chaîne)">Empreinte n° {{ txn.seal_index }} : <code>{{ txn.seal|truncatechars:20 }}</code></div>{% endif %}
+      {% else %}
+        <span class="badge bg-warning text-dark fs-6">Brouillon</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if txn.reversal_of %}<p class="small mt-2 mb-0">Contre-passation de <a href="{% url 'accounting:entry_detail' txn.reversal_of_id %}">{{ txn.reversal_of.number }}</a>.</p>{% endif %}
+  {% for r in reversals %}<p class="small mt-2 mb-0">Annulée par <a href="{% url 'accounting:entry_detail' r.pk %}">{{ r.number }}</a>.</p>{% endfor %}
+</div>
+
+<form method="post" class="glass-card mb-4">{% csrf_token %}<input type="hidden" name="action" value="analytic">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Compte</th><th>Libellé</th><th>Auxiliaire</th><th class="text-end">Débit</th><th class="text-end">Crédit</th><th>Lettrage</th>{% if sections %}<th>Section</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for e in entries %}
+          <tr>
+            <td><a href="{% url 'accounting:general_ledger' e.account.code %}">{{ e.account.code }}</a> <span class="small text-muted">{{ e.account.name }}</span></td>
+            <td>{{ e.label }}{% if e.vat_rate is not None %} <span class="small text-muted">(TVA {{ e.vat_rate|floatformat:"-4" }})</span>{% endif %}{% if e.currency %} <span class="small text-muted">· {{ e.currency_amount|floatformat:"2g" }} {{ e.currency }}</span>{% endif %}</td>
+            <td class="small">{{ e.auxiliary_label }}</td>
+            <td class="text-end">{% if e.debit %}{{ e.debit|floatformat:"2g" }}{% endif %}</td>
+            <td class="text-end">{% if e.credit %}{{ e.credit|floatformat:"2g" }}{% endif %}</td>
+            <td class="small">{% if e.reconciliation_ref %}<a href="{% url 'accounting:reconciliation_account' e.account.code %}?aux={{ e.auxiliary_code|urlencode }}&all=1">{{ e.reconciliation_ref }}</a> {{ e.reconciled_at|date:"d/m/Y" }}{% endif %}</td>
+            {% if sections %}<td class="small">{% if e.account.pcg_class == "6" or e.account.pcg_class == "7" %}{% if perms.accounting.change_ledgerentry %}
+              <select name="analytic_{{ e.pk }}" class="form-select form-select-sm"><option value="">—</option>{% for s in sections %}<option value="{{ s.pk }}" {% if s.pk == e.analytic_id %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
+              {% else %}{{ e.analytic.code|default:"" }}{% endif %}{% endif %}</td>{% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold"><td colspan="3">Total</td><td class="text-end">{{ debit|floatformat:"2g" }}</td><td class="text-end">{{ credit|floatformat:"2g" }}</td><td></td>{% if sections %}<td>
+          {% if perms.accounting.change_ledgerentry %}<button class="btn btn-sm btn-outline-light">Enregistrer la ventilation</button>{% endif %}</td>{% endif %}</tr>
+      </tfoot>
+    </table>
+  </div>
+  {% if debit != credit %}<div class="alert alert-danger mt-3 mb-0">Écriture déséquilibrée : elle ne peut pas être validée.</div>{% endif %}
+  {% if sections %}<p class="small text-muted mt-2 mb-0">Ventilation analytique des charges et produits : modifiable à tout moment, sans toucher à l'écriture.</p>{% endif %}
+</form>
+
+<div class="d-flex flex-wrap gap-2">
+  {% if not txn.is_validated %}
+    {% if perms.accounting.validate_transaction %}
+      <form method="post" action="{% url 'accounting:entry_validate' txn.pk %}">{% csrf_token %}
+        <button class="btn btn-primary" {% if debit != credit %}disabled{% endif %}>Valider (numéroter et verrouiller)</button>
+      </form>
+    {% endif %}
+    {% if perms.accounting.change_transaction %}<a class="btn btn-outline-light" href="{% url 'accounting:entry_edit' txn.pk %}">Modifier</a>{% endif %}
+    {% if perms.accounting.delete_transaction %}
+      <form method="post" action="{% url 'accounting:entry_delete' txn.pk %}" onsubmit="return confirm('Supprimer ce brouillon ?');">{% csrf_token %}
+        <button class="btn btn-outline-danger">Supprimer le brouillon</button>
+      </form>
+    {% endif %}
+  {% elif perms.accounting.validate_transaction and not reversals %}
+    <form method="post" action="{% url 'accounting:entry_reverse' txn.pk %}" onsubmit="return confirm('Créer une écriture inverse pour annuler celle-ci ?');">{% csrf_token %}
+      <button class="btn btn-outline-warning">Contre-passer</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

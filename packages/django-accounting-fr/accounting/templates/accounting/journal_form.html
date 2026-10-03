@@ -1,0 +1,31 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}{% if journal %}Journal {{ journal.code }}{% else %}Nouveau journal{% endif %}{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-3">{% if journal %}Journal {{ journal.code }}{% else %}Nouveau journal{% endif %}</h1>
+<div class="glass-card" style="max-width: 640px;">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary btn-sm" type="submit">Enregistrer</button>
+      <a class="btn btn-link btn-sm" href="{% url 'accounting:journals' %}">Annuler</a>
+      {% if deletable %}<button class="btn btn-outline-danger btn-sm ms-auto" name="delete" value="1"
+              onclick="return confirm('Supprimer ce journal ?');">Supprimer</button>{% endif %}
+    </div>
+  </form>
+  <p class="small text-muted mt-3 mb-0">
+    Un journal « Banque / trésorerie » a un compte de trésorerie, contrepartie de toutes ses écritures : en saisie,
+    elle s'ajoute d'elle-même, et c'est ce journal que l'on rapproche avec les relevés. Pour un moyen de paiement,
+    choisissez son journal dans Réglages › Comptabilité.
+  </p>
+</div>
+{% endblock %}

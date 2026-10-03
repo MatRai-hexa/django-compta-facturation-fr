@@ -1,0 +1,70 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}État de rapprochement {{ data.journal.code }}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">État de rapprochement — journal {{ data.journal.code }} {{ data.journal.label }}</h1>
+    <div class="small text-muted"><a class="no-print" href="{% url 'accounting:bank_account' data.journal.code %}">‹ Pointage</a> · compte {{ data.account.code }} {{ data.account.name }} · au {{ data.day|date:"d/m/Y" }}</div>
+  </div>
+  <div class="no-print small">
+    {% if perms.accounting.export_data %}<a href="?as_of={{ data.day|date:'Y-m-d' }}&format=csv">CSV</a> · {% endif %}
+    <a href="#" onclick="window.print(); return false;">Imprimer / PDF</a>
+  </div>
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small mb-1" for="id_as_of">Au</label>{{ form.as_of }}</div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Afficher</button></div>
+</form>
+
+<div class="glass-card mb-3">
+  <table class="table table-sm mb-0" style="max-width:640px">
+    <tbody>
+      <tr><td>Solde comptable du compte {{ data.account.code }}</td><td class="text-end">{{ data.book_balance|floatformat:"2g" }}</td></tr>
+      <tr><td>− Écritures non encore sur le relevé ({{ data.unmatched_entries|length }})</td><td class="text-end">{{ data.pending_entries|floatformat:"2g" }}</td></tr>
+      <tr><td>+ Opérations du relevé non comptabilisées ({{ data.unmatched_lines|length }})</td><td class="text-end">{{ data.pending_lines|floatformat:"2g" }}</td></tr>
+      <tr class="fw-semibold"><td>= Solde du relevé attendu</td><td class="text-end">{{ data.expected_bank_balance|floatformat:"2g" }}</td></tr>
+      <tr><td>Solde du relevé</td><td class="text-end">{% if data.bank_balance is not None %}{{ data.bank_balance|floatformat:"2g" }}{% else %}<span class="text-muted">inconnu</span>{% endif %}</td></tr>
+      <tr class="fw-bold {% if data.gap %}text-danger{% elif data.gap is not None %}text-success{% endif %}"><td>Écart</td>
+        <td class="text-end">{% if data.gap is not None %}{{ data.gap|floatformat:"2g" }}{% else %}—{% endif %}</td></tr>
+    </tbody>
+  </table>
+  <p class="small text-muted mt-2 mb-0">
+    {% if data.bank_balance is None %}Solde du relevé inconnu : importez un relevé OFX, CAMT.053 ou CFONB, ou indiquez le solde final à l'import d'un CSV.
+    {% elif data.gap %}Un écart signale une opération manquante (relevé incomplet, écriture oubliée ou en double) ou un solde initial erroné.
+    {% else %}Le compte est rapproché : les opérations restantes s'expliquent par les décalages de dates.{% endif %}
+    Montants positifs : encaissements (débit du compte {{ data.account.code }}).</p>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h6">Écritures non encore sur le relevé</h2>
+      <table class="table table-sm align-middle mb-0">
+        <tbody>
+          {% for e in data.unmatched_entries %}
+            <tr><td class="small text-nowrap">{{ e.transaction.date|date:"d/m/Y" }}</td>
+              <td class="small"><a href="{% url 'accounting:entry_detail' e.transaction_id %}">{{ e.transaction.number }}</a> {{ e.label }}</td>
+              <td class="text-end text-nowrap">{% if e.debit %}{{ e.debit|floatformat:"2g" }}{% else %}-{{ e.credit|floatformat:"2g" }}{% endif %}</td></tr>
+          {% empty %}<tr><td class="text-muted small">Aucune.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h6">Opérations du relevé non comptabilisées</h2>
+      <table class="table table-sm align-middle mb-0">
+        <tbody>
+          {% for l in data.unmatched_lines %}
+            <tr><td class="small text-nowrap">{{ l.date|date:"d/m/Y" }}</td><td class="small">{{ l.label }}</td>
+              <td class="text-end text-nowrap">{{ l.amount|floatformat:"2g" }}</td></tr>
+          {% empty %}<tr><td class="text-muted small">Aucune.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

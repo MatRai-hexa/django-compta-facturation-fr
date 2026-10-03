@@ -1,0 +1,37 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Sections analytiques{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-1">Sections analytiques</h1>
+<p class="small text-muted mb-3"><a href="{% url 'accounting:analytic' %}">‹ Résultat par section</a> · une section par activité, magasin,
+  canal de vente ou projet. Elle s'indique à la saisie, par l'API (lignes de vente et d'achat) ou après coup sur chaque écriture.</p>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="glass-card">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Code</th><th>Libellé</th><th class="text-end">Lignes</th><th>Statut</th><th></th></tr></thead>
+        <tbody>{% for s in sections %}
+          <tr><td><strong>{{ s.code }}</strong></td><td>{{ s.label }}</td><td class="text-end">{{ s.lines }}</td>
+            <td class="small">{% if s.is_active %}Active{% else %}<span class="text-muted">Inactive</span>{% endif %}</td>
+            <td class="text-end">{% if perms.accounting.change_analyticsection %}<a class="small" href="{% url 'accounting:analytic_section_edit' s.pk %}">modifier</a>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted small">Aucune section.</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+  {% if perms.accounting.add_analyticsection or section and perms.accounting.change_analyticsection %}
+  <div class="col-lg-5">
+    <form method="post" class="glass-card" novalidate>{% csrf_token %}
+      <h2 class="h5">{% if section %}Section {{ section.code }}{% else %}Nouvelle section{% endif %}</h2>
+      {% for field in form %}
+        <div class="mb-2">{% if field.name == "is_active" %}<div class="form-check">{{ field }} {{ field.label_tag }}</div>{% else %}{{ field.label_tag }} {{ field }}{% endif %}
+          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      {% endfor %}
+      <button class="btn btn-sm btn-primary">Enregistrer</button>
+      {% if section %}<a class="btn btn-sm btn-link" href="{% url 'accounting:analytic_sections' %}">Annuler</a>{% endif %}
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

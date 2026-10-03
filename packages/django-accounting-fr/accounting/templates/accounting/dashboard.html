@@ -1,0 +1,48 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Tableau de bord comptable{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-4">Tableau de bord comptable</h1>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="glass-card h-100"><div class="small text-muted">CA HT du mois</div><div class="fs-4 fw-bold">{{ stats.revenue_month|floatformat:"2g" }} €</div></div></div>
+  <div class="col-md-3"><div class="glass-card h-100"><div class="small text-muted">CA HT de l'année</div><div class="fs-4 fw-bold">{{ stats.revenue_year|floatformat:"2g" }} €</div></div></div>
+  <div class="col-md-3"><div class="glass-card h-100"><div class="small text-muted">Résultat de l'année</div><div class="fs-4 fw-bold">{{ stats.profit_year|floatformat:"2g" }} €</div></div></div>
+  <div class="col-md-3"><div class="glass-card h-100"><div class="small text-muted">TVA nette du mois</div><div class="fs-4 fw-bold">{{ stats.vat_month|floatformat:"2g" }} €</div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="glass-card h-100">
+    <div class="small text-muted">Écritures en brouillon</div><div class="fs-4 fw-bold">{{ stats.drafts }}</div>
+    <a class="small" href="{% url 'accounting:entry_list' %}?status=draft">Voir les brouillons</a>
+  </div></div>
+  {% for panel in panels %}
+  <div class="col-md-4"><div class="glass-card h-100 {% if panel.alert %}border border-warning{% endif %}">
+    <div class="small text-muted">{{ panel.label }}</div><div class="fs-4 fw-bold">{{ panel.value }}</div>
+    {% if panel.url %}<a class="small" href="{{ panel.url }}">Voir</a>{% endif %}
+  </div></div>
+  {% endfor %}
+</div>
+
+{% if stats.treasury_anomalies %}
+<div class="alert alert-warning">
+  <strong>Comptes de trésorerie mouvementés hors de leur journal :</strong>
+  {% for a in stats.treasury_anomalies %}{{ a.account }} (journal {{ a.owner }}) dans {{ a.journal }} : {{ a.lines }} ligne{{ a.lines|pluralize }}{% if not forloop.last %} · {% endif %}{% endfor %}.
+  <div class="small">Écritures antérieures aux journaux de trésorerie : elles restent valables et se pointent avec le
+    journal du compte. Les nouvelles écritures de ces comptes passent dans leur journal.</div>
+</div>
+{% endif %}
+
+{% if stats.unbalanced %}
+<div class="alert alert-danger">
+  <strong>Brouillons déséquilibrés :</strong>
+  {% for t in stats.unbalanced %}<a href="{% url 'accounting:entry_detail' t.pk %}">#{{ t.pk }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<div class="glass-card">
+  <h2 class="h5 mb-3">Dernières écritures</h2>
+  {% include "accounting/_entries_table.html" with entries=stats.recent %}
+</div>
+{% endblock %}

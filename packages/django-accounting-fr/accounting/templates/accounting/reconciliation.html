@@ -1,0 +1,85 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Lettrage{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Lettrage des comptes de tiers</h1>
+    <p class="small text-muted mb-0">Rapprochez les factures de leurs règlements : ce qui reste non lettré est dû par vos clients ou à vos fournisseurs.</p>
+  </div>
+  {% if account %}
+  <div class="d-flex gap-2 no-print">
+    <a class="btn btn-sm btn-outline-light" href="{% url 'accounting:aged_balance' %}?account={{ account.code }}">Balance âgée</a>
+    {% if perms.accounting.reconcile_entries %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="scope" value="all">
+        <button class="btn btn-sm btn-primary" title="Même pièce, même référence, même montant ou tiers soldé">Lettrage automatique</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if closed_without_opening %}
+  <div class="alert alert-warning small">L'exercice {{ closed_without_opening.name }} est clôturé sans à-nouveaux : les soldes de ses tiers n'apparaissent pas ici.
+    <a href="{% url 'accounting:periods' %}">Générer les à-nouveaux</a>.</div>
+{% endif %}
+
+{% if not account %}
+  <div class="glass-card text-muted">Aucun compte de tiers lettrable.</div>
+{% else %}
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+  {% for a in accounts %}
+    <a class="btn btn-sm {% if a == account %}btn-primary{% else %}btn-outline-light{% endif %}" href="?account={{ a.code }}">{{ a.code }} {{ a.name }}</a>
+  {% endfor %}
+  <form method="get" class="d-flex gap-2 ms-auto">
+    <input type="hidden" name="account" value="{{ account.code }}">
+    <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Tiers (nom, code, email)">
+    <div class="form-check text-nowrap align-self-center small">
+      <input class="form-check-input" type="checkbox" name="all" value="1" id="all" {% if show_all %}checked{% endif %} onchange="this.form.submit()">
+      <label class="form-check-label" for="all">Soldes nuls</label>
+    </div>
+    <button class="btn btn-sm btn-outline-light">Filtrer</button>
+  </form>
+</div>
+
+{% if balanced and perms.accounting.reconcile_entries %}
+  <div class="alert alert-info small d-flex justify-content-between align-items-center">
+    <span>{{ balanced }} tiers {{ balanced|pluralize:"a,ont" }} un solde nul avec des lignes non lettrées : le lettrage automatique peut les solder.</span>
+    <form method="post">{% csrf_token %}<input type="hidden" name="scope" value="account"><button class="btn btn-sm btn-outline-primary">Lettrer le compte {{ account.code }}</button></form>
+  </div>
+{% endif %}
+
+<div class="glass-card">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Tiers</th><th class="text-end d-none d-md-table-cell">Lignes</th><th class="text-end d-none d-md-table-cell">Débit</th><th class="text-end d-none d-md-table-cell">Crédit</th>
+        <th class="text-end" title="{% if payable %}Dû au fournisseur{% else %}Dû par le client{% endif %}">Solde</th><th class="d-none d-md-table-cell">Plus ancienne</th><th></th></tr></thead>
+      <tbody>
+        {% for r in page %}
+          <tr>
+            <td>{{ r.label|default:"(sans compte auxiliaire)" }}{% if r.code and r.code != r.label %} <span class="small text-muted">{{ r.code }}</span>{% endif %}</td>
+            <td class="text-end d-none d-md-table-cell">{{ r.count }}</td>
+            <td class="text-end d-none d-md-table-cell">{{ r.debit|floatformat:"2g" }}</td>
+            <td class="text-end d-none d-md-table-cell">{{ r.credit|floatformat:"2g" }}</td>
+            <td class="text-end fw-semibold {% if r.balance < 0 %}text-warning{% endif %}">{{ r.balance|floatformat:"2g" }}</td>
+            <td class="small d-none d-md-table-cell">{{ r.oldest|date:"d/m/Y" }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'accounting:reconciliation_account' account.code %}?aux={{ r.code|urlencode }}">Lettrer</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-muted">Tout est lettré : aucune somme en attente.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.has_other_pages %}
+    <div class="d-flex gap-2 mt-2 small">
+      {% if page.has_previous %}<a href="?account={{ account.code }}&q={{ q|urlencode }}{% if show_all %}&all=1{% endif %}&page={{ page.previous_page_number }}">‹ Précédents</a>{% endif %}
+      <span class="text-muted">Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a href="?account={{ account.code }}&q={{ q|urlencode }}{% if show_all %}&all=1{% endif %}&page={{ page.next_page_number }}">Suivants ›</a>{% endif %}
+    </div>
+  {% endif %}
+  <p class="small text-muted mt-2 mb-0">Solde : {% if payable %}dû au fournisseur{% else %}dû par le client{% endif %}, sur les lignes validées des exercices ouverts. Un solde négatif signale un trop-perçu (avoir non remboursé, règlement en double…).
+    <a href="{% url 'accounting:reconciliation_account' account.code %}">Toutes les lignes du compte</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

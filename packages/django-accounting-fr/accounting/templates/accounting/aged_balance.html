@@ -1,0 +1,49 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Balance âgée {{ data.account.code }}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Balance âgée — {{ data.account.code }} {{ data.account.name }}</h1>
+    <div class="small text-muted"><a class="no-print" href="{% url 'accounting:reconciliation' %}?account={{ data.account.code }}">‹ Lettrage</a>
+      · au {{ data.as_of|date:"d/m/Y" }}, sommes non lettrées {% if payable %}dues aux fournisseurs{% else %}dues par les clients{% endif %}, selon l'ancienneté des pièces</div>
+  </div>
+  <div class="no-print small">
+    {% if perms.accounting.export_data %}<a href="?account={{ data.account.code }}&as_of={{ data.as_of|date:'Y-m-d' }}&format=csv">CSV</a> · {% endif %}
+    <a href="#" onclick="window.print(); return false;">Imprimer / PDF</a>
+  </div>
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small mb-1" for="account">Compte</label>
+    <select name="account" id="account" class="form-select form-select-sm">{% for a in accounts %}<option value="{{ a.code }}" {% if a == data.account %}selected{% endif %}>{{ a.code }} {{ a.name }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-1" for="id_as_of">Au</label>{{ form.as_of }}</div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Afficher</button></div>
+</form>
+
+<div class="glass-card">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Tiers</th>{% for label in data.labels %}<th class="text-end">{{ label }}</th>{% endfor %}<th class="text-end">Total</th></tr></thead>
+      <tbody>
+        {% for row in data.rows %}
+          <tr>
+            <td><a href="{% url 'accounting:reconciliation_account' data.account.code %}?aux={{ row.code|urlencode }}">{{ row.label|default:"(sans compte auxiliaire)" }}</a>
+              {% if row.code and row.code != row.label %}<span class="small text-muted">{{ row.code }}</span>{% endif %}</td>
+            {% for amount in row.buckets %}<td class="text-end {% if forloop.counter > 2 and amount > 0 %}text-warning{% endif %}">{% if amount %}{{ amount|floatformat:"2g" }}{% endif %}</td>{% endfor %}
+            <td class="text-end fw-semibold">{{ row.total|floatformat:"2g" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted">Aucune somme en attente à cette date.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if data.rows %}
+      <tfoot><tr class="fw-bold"><td>Total</td>{% for amount in data.totals %}<td class="text-end">{{ amount|floatformat:"2g" }}</td>{% endfor %}<td class="text-end">{{ data.total|floatformat:"2g" }}</td></tr></tfoot>
+      {% endif %}
+    </table>
+  </div>
+  <p class="small text-muted mt-2 mb-0">Ancienneté comptée depuis la date de l'écriture. Un montant négatif est un trop-perçu ou un avoir à imputer.
+    Les à-nouveaux portent la date d'ouverture de l'exercice.</p>
+</div>
+{% endblock %}

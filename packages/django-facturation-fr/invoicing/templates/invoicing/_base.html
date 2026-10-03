@@ -1,0 +1,13 @@
+{% extends base_template|default:"invoicing/standalone_base.html" %}
+{% block title %}{% block page_title %}Facturation{% endblock %}{% endblock %}
+{% block content %}
+<div class="invoicing">
+  <nav class="d-flex flex-wrap gap-2 mb-4 small">
+    {% url 'invoicing:list' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Factures et avoirs</a>
+    {% url 'invoicing:incoming_list' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Factures reçues</a>
+    {% url 'invoicing:einvoicing' as u %}<a class="btn btn-sm {% if u in request.path %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Plateforme et e-reporting</a>
+    {% if perms.invoicing.change_invoicingsettings %}{% url 'invoicing:settings' as u %}<a class="btn btn-sm {% if request.path == u %}btn-primary{% else %}btn-outline-light{% endif %}" href="{{ u }}">Paramètres</a>{% endif %}
+  </nav>
+  {% block invoicing_content %}{% endblock %}
+</div>
+{% endblock %}

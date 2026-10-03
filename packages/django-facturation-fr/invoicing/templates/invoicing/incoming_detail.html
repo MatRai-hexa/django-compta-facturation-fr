@@ -1,0 +1,50 @@
+{% extends "invoicing/_base.html" %}
+{% block page_title %}{{ incoming }}{% endblock %}
+{% block invoicing_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div><h1 class="h3 mb-1">{% if incoming.is_credit_note %}Avoir{% else %}Facture{% endif %} {{ incoming.number }} — {{ incoming.seller_name }}</h1>
+    <div class="small text-muted">Du {{ incoming.issue_date|date:"d/m/Y" }}{% if incoming.due_date %} · échéance {{ incoming.due_date|date:"d/m/Y" }}{% endif %} · {{ incoming.flavor }} · statut <strong>{{ incoming.status_label }}</strong></div></div>
+  <a class="btn btn-sm btn-outline-light" href="{% url 'invoicing:incoming_file' incoming.pk %}" target="_blank" rel="noopener">Fichier reçu</a>
+</div>
+{% if incoming.status_reason %}<div class="alert alert-warning small">{{ incoming.status_reason }}</div>{% endif %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="glass-card mb-3">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Désignation</th><th class="text-end">Qté</th><th class="text-end">Montant HT</th></tr></thead>
+        <tbody>{% for l in incoming.line_rows %}<tr><td>{{ l.description }}</td><td class="text-end">{{ l.quantity }}</td><td class="text-end">{{ l.amount|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+        <tfoot>
+          {% for r in incoming.vat_rows %}<tr class="small text-muted"><td colspan="2" class="text-end">TVA {{ r.percent }} % sur {{ r.base|floatformat:"2g" }}</td><td class="text-end">{{ r.vat|floatformat:"2g" }}</td></tr>{% endfor %}
+          <tr><td colspan="2" class="text-end">Total HT</td><td class="text-end">{{ incoming.total_ht|floatformat:"2g" }}</td></tr>
+          <tr><td colspan="2" class="text-end">TVA</td><td class="text-end">{{ incoming.total_vat|floatformat:"2g" }}</td></tr>
+          <tr class="fw-bold"><td colspan="2" class="text-end">Total TTC</td><td class="text-end">{{ incoming.total_ttc|floatformat:"2g" }} €</td></tr>
+          <tr><td colspan="2" class="text-end">Reste à payer</td><td class="text-end">{{ incoming.amount_due|floatformat:"2g" }} €</td></tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="glass-card small">
+      <h2 class="h6">Historique</h2>
+      {% for e in events %}<div class="py-1 border-bottom">{{ e.at|date:"d/m/Y H:i" }} — <strong>{{ e.code }} {{ e.label }}</strong>{% if e.message %} : {{ e.message }}{% endif %} <span class="text-muted">({{ e.source }})</span></div>{% endfor %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card small mb-3">
+      <h2 class="h6">Fournisseur</h2>
+      <div>{{ incoming.seller_name }}</div><div>SIREN {{ incoming.seller_siren|default:"—" }}</div><div>TVA {{ incoming.seller_vat_number|default:"—" }}</div>
+    </div>
+    {% if actions and perms.invoicing.add_invoice %}
+    <form method="post" action="{% url 'invoicing:incoming_status' incoming.pk %}" class="glass-card small">{% csrf_token %}
+      <h2 class="h6">Traiter la facture</h2>
+      <label class="form-label">Statut</label>
+      <select name="status" class="form-select form-select-sm mb-2">{% for code, label in actions %}<option value="{{ code }}" {% if code == 205 %}selected{% endif %}>{{ code }} - {{ label }}</option>{% endfor %}</select>
+      <label class="form-label">Motif / précision</label>
+      <input type="text" name="message" maxlength="300" class="form-control form-control-sm mb-2" placeholder="Obligatoire pour un refus">
+      <label class="form-label">Compte de charge</label>
+      <input type="text" name="expense_account" value="{{ incoming.expense_account }}" maxlength="20" class="form-control form-control-sm mb-2" placeholder="Défaut : compte d'achat (607000)">
+      <button class="btn btn-sm btn-primary w-100">Enregistrer</button>
+      <p class="text-muted mt-2 mb-0">« Approuvée » passe l'écriture d'achat en comptabilité.</p>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

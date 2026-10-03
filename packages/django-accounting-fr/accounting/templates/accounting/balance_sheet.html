@@ -1,0 +1,54 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Bilan{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Bilan au {{ sheet.as_of|date:"d/m/Y" }}</h1>
+    <div class="small text-muted">{% if sheet.period %}Exercice {{ sheet.period.name }}{% if sheet.from_opening %}, depuis les à-nouveaux{% else %} (sans à-nouveaux : soldes depuis l'origine){% endif %}{% endif %}
+      · présentation simplifiée par rubriques du plan comptable, résultat de l'exercice en capitaux propres.</div>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-end no-print">
+    <div>{{ form.as_of.label_tag }} {{ form.as_of }}</div>
+    <div class="form-check small mb-1"><input class="form-check-input" type="checkbox" name="validated_only" id="validated_only" {% if validated_only %}checked{% endif %}>
+      <label class="form-check-label" for="validated_only">Écritures validées uniquement</label></div>
+    <button class="btn btn-sm btn-primary">Afficher</button>
+    {% if perms.accounting.export_data %}<a class="btn btn-sm btn-outline-light" href="?as_of={{ sheet.as_of|date:'Y-m-d' }}{% if validated_only %}&validated_only=on{% endif %}&format=csv">CSV</a>{% endif %}
+  </form>
+</div>
+
+{% if not sheet.is_balanced %}<div class="alert alert-danger">Actif et passif ne sont pas égaux : des brouillons déséquilibrés faussent le bilan.</div>{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h5">Actif</h2>
+      <table class="table table-sm mb-0">
+        {% for section in sheet.assets %}
+          <tr class="fw-semibold"><td colspan="2">{{ section.label }}</td></tr>
+          {% for r in section.accounts %}<tr><td class="ps-3 small">{{ r.account.code }} {{ r.account.name }}</td><td class="text-end">{{ r.amount|floatformat:"2g" }} €</td></tr>{% endfor %}
+          <tr><td class="text-muted small">Total {{ section.label|lower }}</td><td class="text-end fw-semibold">{{ section.total|floatformat:"2g" }} €</td></tr>
+        {% empty %}<tr><td class="text-muted">Aucun actif.</td></tr>{% endfor %}
+        <tr class="fw-bold fs-6"><td>Total actif</td><td class="text-end">{{ sheet.total_assets|floatformat:"2g" }} €</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h5">Passif</h2>
+      <table class="table table-sm mb-0">
+        {% for section in sheet.liabilities %}
+          <tr class="fw-semibold"><td colspan="2">{{ section.label }}</td></tr>
+          {% for r in section.accounts %}<tr><td class="ps-3 small">{% if r.account %}{{ r.account.code }} {{ r.account.name }}{% else %}<em>{{ r.label }}</em>{% endif %}</td><td class="text-end">{{ r.amount|floatformat:"2g" }} €</td></tr>{% endfor %}
+          <tr><td class="text-muted small">Total {{ section.label|lower }}</td><td class="text-end fw-semibold">{{ section.total|floatformat:"2g" }} €</td></tr>
+        {% empty %}<tr><td class="text-muted">Aucun passif.</td></tr>{% endfor %}
+        <tr class="fw-bold fs-6"><td>Total passif</td><td class="text-end">{{ sheet.total_liabilities|floatformat:"2g" }} €</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+<p class="small text-muted mt-3 mb-0">Comptes de tiers et de trésorerie classés selon le sens de leur solde (débiteur à l'actif, créditeur
+  au passif) ; amortissements et dépréciations en déduction de l'actif. Document de pilotage : les comptes annuels
+  (liasse fiscale) restent établis par l'expert-comptable.</p>
+{% endblock %}

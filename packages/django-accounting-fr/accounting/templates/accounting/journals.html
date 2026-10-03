@@ -1,0 +1,65 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Journaux{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <h1 class="h3 mb-0">Journaux</h1>
+  <div class="d-flex gap-2 no-print">
+    <a class="btn btn-sm btn-outline-light" href="{% url 'accounting:journal_all' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">Livre-journal (tous les journaux)</a>
+    {% if perms.accounting.add_journal %}<a class="btn btn-sm btn-primary" href="{% url 'accounting:journal_create' %}">Nouveau journal</a>{% endif %}
+  </div>
+</div>
+{% include "accounting/_period_filter.html" with show_validated=True %}
+
+<div class="glass-card mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h5 mb-0">Journal centralisateur du {{ start|date:"d/m/Y" }} au {{ end|date:"d/m/Y" }}</h2>
+    <div class="no-print small">
+      {% if perms.accounting.export_data %}<a href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv">CSV</a> · {% endif %}
+      <a href="#" onclick="window.print(); return false;">Imprimer / PDF</a>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Journal</th><th>Mois</th><th class="text-end">Écritures</th><th class="text-end">Débit</th><th class="text-end">Crédit</th></tr></thead>
+      <tbody>
+        {% for group in centralizer.journals %}
+          {% for m in group.months %}
+            <tr>
+              <td>{% if forloop.first %}<a href="{% url 'accounting:journal_detail' group.journal.code %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}"><strong>{{ group.journal.code }}</strong> {{ group.journal.label }}</a>{% endif %}</td>
+              <td>{{ m.month|date:"F Y"|capfirst }}</td>
+              <td class="text-end">{{ m.entries }}</td>
+              <td class="text-end">{{ m.debit|floatformat:"2g" }}</td>
+              <td class="text-end">{{ m.credit|floatformat:"2g" }}</td>
+            </tr>
+          {% endfor %}
+          <tr class="fw-semibold"><td colspan="2">Total {{ group.journal.code }}</td><td class="text-end">{{ group.entries }}</td>
+            <td class="text-end">{{ group.debit|floatformat:"2g" }}</td><td class="text-end">{{ group.credit|floatformat:"2g" }}</td></tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-muted">Aucune écriture sur la période.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if centralizer.journals %}
+      <tfoot>
+        <tr class="fw-bold"><td colspan="2">Total général</td><td class="text-end">{{ centralizer.total.entries }}</td>
+          <td class="text-end">{{ centralizer.total.debit|floatformat:"2g" }}</td><td class="text-end">{{ centralizer.total.credit|floatformat:"2g" }}</td></tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+  {% if centralizer.journals %}
+  <p class="small mt-2 mb-0 {% if centralizer.is_balanced and centralizer.matches_trial_balance %}text-success{% else %}text-danger{% endif %}">
+    {% if centralizer.is_balanced and centralizer.matches_trial_balance %}Débit = crédit, et totaux identiques à ceux de la balance de la période.
+    {% else %}Écart : le centralisateur n'est pas équilibré ou ne correspond pas à la balance.{% endif %}
+  </p>
+  {% endif %}
+</div>
+
+{% if unused %}
+<div class="glass-card no-print">
+  <h2 class="h6">Journaux sans écriture sur la période</h2>
+  <p class="mb-0 small">{% for j in unused %}<a href="{% url 'accounting:journal_detail' j.code %}">{{ j }}</a>{% if perms.accounting.change_journal %} (<a href="{% url 'accounting:journal_edit' j.code %}">modifier</a>){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+</div>
+{% endif %}
+{% endblock %}

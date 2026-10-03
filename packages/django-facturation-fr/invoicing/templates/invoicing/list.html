@@ -1,0 +1,30 @@
+{% extends "invoicing/_base.html" %}
+{% block page_title %}Factures{% endblock %}
+{% block invoicing_content %}
+<h1 class="h3 mb-3">Factures et avoirs</h1>
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><input type="search" name="q" value="{{ request.GET.q|default:'' }}" class="form-control form-control-sm" placeholder="N°, client, email, référence"></div>
+  <div class="col-auto"><select name="kind" class="form-select form-select-sm"><option value="">Factures et avoirs</option>
+    {% for value, label in kinds %}<option value="{{ value }}" {% if value == kind %}selected{% endif %}>{{ label }}s</option>{% endfor %}</select></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Filtrer</button></div>
+</form>
+<div class="glass-card">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Numéro</th><th>Date</th><th>Client</th><th>Référence</th><th class="text-end">Total TTC</th><th>Statut</th><th></th></tr></thead>
+    <tbody>{% for i in page %}
+      <tr>
+        <td><a href="{% url 'invoicing:detail' i.pk %}">{{ i.number }}</a>{% if i.is_credit_note %} <span class="badge bg-secondary">avoir</span>{% endif %}</td>
+        <td>{{ i.issue_date|date:"d/m/Y" }}</td>
+        <td>{{ i.buyer_name }}{% if i.is_business %} <span class="small text-muted">pro</span>{% endif %}</td>
+        <td class="small">{{ i.buyer_reference }}</td>
+        <td class="text-end">{% if i.is_credit_note %}-{% endif %}{{ i.total_ttc|floatformat:"2g" }} €</td>
+        <td class="small">{% if i.paid_at %}Acquittée{% elif i.is_credit_note %}—{% else %}À régler{% endif %}</td>
+        <td class="text-end"><a href="{% url 'invoicing:pdf' i.pk %}" target="_blank" rel="noopener">PDF</a></td>
+      </tr>
+    {% empty %}<tr><td colspan="7" class="text-muted">Aucune facture.</td></tr>{% endfor %}</tbody>
+  </table>
+  {% if page.has_other_pages %}<div class="small mt-2">
+    {% if page.has_previous %}<a href="{% querystring page=page.previous_page_number %}">« Précédentes</a>{% endif %}
+    {% if page.has_next %}<a class="ms-3" href="{% querystring page=page.next_page_number %}">Suivantes »</a>{% endif %}</div>{% endif %}
+</div>
+{% endblock %}

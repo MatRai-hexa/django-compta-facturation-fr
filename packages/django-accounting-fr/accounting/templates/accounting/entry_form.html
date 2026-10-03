@@ -1,0 +1,54 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}{% if editing %}Modifier le brouillon{% else %}Nouvelle écriture{% endif %}{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-2">{% if editing %}Modifier le brouillon{% else %}Nouvelle écriture{% endif %}</h1>
+<p class="text-muted small mb-4">
+  Pour les opérations hors boutique : facture fournisseur, frais Stripe ou PayPal, virement du prestataire vers la banque
+  (ex. débit 512000 Banque / crédit 467100 Stripe)…
+  Les ventes et encaissements de la boutique sont comptabilisés automatiquement.
+</p>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="glass-card mb-4">
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="row g-3">
+      <div class="col-md-3">{{ form.journal.label_tag }} {{ form.journal }}
+        <div class="form-text">Journal de banque : la contrepartie sur son compte de trésorerie s'ajoute d'elle-même.</div></div>
+      <div class="col-md-3">{{ form.date.label_tag }} {{ form.date }}</div>
+      <div class="col-md-6">{{ form.reference.label_tag }} {{ form.reference }}</div>
+      <div class="col-12">{{ form.description.label_tag }} {{ form.description }} {{ form.description.errors }}</div>
+      {% if perms.accounting.validate_transaction %}<div class="col-12 form-check ms-2">{{ form.validate }} {{ form.validate.label_tag }}</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="glass-card mb-4">
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Compte</th><th>Libellé</th><th>Tiers</th><th>Section</th><th style="width:140px">Débit</th><th style="width:140px">Crédit</th><th colspan="2" class="small text-muted">En devise (facultatif)</th></tr></thead>
+      <tbody>
+        {% for f in formset %}
+          <tr>
+            <td>{{ f.account }}{{ f.non_field_errors }}</td>
+            <td>{{ f.label }}</td>
+            <td>{{ f.auxiliary_code }}</td>
+            <td>{{ f.analytic }}</td>
+            <td>{{ f.debit }}</td>
+            <td>{{ f.credit }}</td>
+            <td>{{ f.currency }}</td>
+            <td style="width:130px">{{ f.currency_amount }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <datalist id="tiers-codes">{% for code, label in tiers.items %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</datalist>
+    <p class="small text-muted mb-0">Le total des débits doit égaler le total des crédits. Les lignes sans compte sont ignorées.
+      Sur un compte client (41) ou fournisseur (40), indiquez le tiers pour pouvoir lettrer la ligne. Opération en devise :
+      montants en euros au cours du jour, et montant d'origine avec sa devise (repris dans le FEC).</p>
+  </div>
+  <button class="btn btn-primary" type="submit">Enregistrer</button>
+</form>
+{% endblock %}

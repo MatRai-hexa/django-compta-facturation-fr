@@ -1,0 +1,50 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Exports{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-3">Exports comptables</h1>
+{% include "accounting/_period_filter.html" %}
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h5">Fichier des écritures comptables (FEC)</h2>
+      <p class="small text-muted">
+        Format légal à remettre à l'administration fiscale en cas de contrôle (art. L47 A du LPF).
+        Seules les écritures <strong>validées</strong> y figurent.
+      </p>
+      {% if not siren %}<div class="alert alert-warning small">SIREN non renseigné (paramètres comptables ou identité de la société) : le nom du fichier en dépend.</div>{% endif %}
+      {% if drafts %}<div class="alert alert-warning small">{{ drafts }} écriture(s) en brouillon sur la période ne seront pas exportées.</div>{% endif %}
+      <a class="btn btn-primary" href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&download=fec">Télécharger le FEC</a>
+      <a class="btn btn-outline-light ms-2" href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&check=fec">Contrôler le FEC</a>
+      {% if fec_report %}
+        <div class="mt-3 small">
+          {% if fec_report.ok %}
+            <div class="alert alert-success mb-2"><strong>Structure conforme</strong> : {{ fec_report.stats.ecritures }} écriture(s),
+              {{ fec_report.stats.lignes }} ligne(s), du {{ fec_report.stats.premiere_date }} au {{ fec_report.stats.derniere_date }},
+              débit = crédit = {{ fec_report.stats.total_debit }} €.</div>
+          {% else %}
+            <div class="alert alert-danger mb-2"><strong>{{ fec_report.errors|length }} anomalie(s) bloquante(s)</strong>
+              <ul class="mb-0">{% for e in fec_report.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+          {% endif %}
+          {% if fec_report.warnings %}
+            <div class="alert alert-warning mb-2"><strong>{{ fec_report.warnings|length }} point(s) d'attention</strong>
+              <ul class="mb-0">{% for w in fec_report.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>
+          {% endif %}
+        </div>
+      {% endif %}
+      <p class="small text-muted mt-3 mb-0">Ce contrôle reprend les règles de structure du FEC (art. A47 A-1 du LPF). Avant une remise
+        à l'administration, validez aussi le fichier avec l'outil gratuit « Test Compta Demat » de la DGFiP.</p>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h5">Écritures (tableur)</h2>
+      <p class="small text-muted">Toutes les lignes d'écriture de la période, brouillons compris, pour votre expert-comptable ou vos analyses.</p>
+      <a class="btn btn-outline-light me-2" href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&download=xlsx">Excel (.xlsx)</a>
+      <a class="btn btn-outline-light" href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&download=csv">CSV</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

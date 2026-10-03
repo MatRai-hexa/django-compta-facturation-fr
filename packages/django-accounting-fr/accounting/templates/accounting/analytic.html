@@ -1,0 +1,30 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Analytique{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Résultat par section analytique</h1>
+    <div class="small text-muted">Produits (classe 7) et charges (classe 6) ventilés par section ; les lignes non affectées sont regroupées à part.</div>
+  </div>
+  <div class="d-flex gap-2 no-print">
+    {% if perms.accounting.view_analyticsection %}<a class="btn btn-sm btn-outline-light" href="{% url 'accounting:analytic_sections' %}">Sections</a>{% endif %}
+    {% if perms.accounting.export_data %}<a class="btn btn-sm btn-outline-light" href="?{{ request.GET.urlencode }}&format=csv">CSV</a>{% endif %}
+  </div>
+</div>
+{% include "accounting/_period_filter.html" with show_validated=True %}
+
+<div class="glass-card">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Section</th><th class="text-end">Produits</th><th class="text-end">Charges</th><th class="text-end">Résultat</th></tr></thead>
+    <tbody>{% for r in data.rows %}
+      <tr><td>{% if r.section %}<strong>{{ r.section.code }}</strong> {{ r.section.label }}{% else %}<em class="text-muted">Non affecté</em>{% endif %}</td>
+        <td class="text-end">{{ r.revenues|floatformat:"2g" }} €</td><td class="text-end">{{ r.expenses|floatformat:"2g" }} €</td>
+        <td class="text-end fw-semibold {% if r.result < 0 %}text-danger{% endif %}">{{ r.result|floatformat:"2g" }} €</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-muted small">Aucune charge ni aucun produit sur la période.</td></tr>{% endfor %}</tbody>
+    <tfoot><tr class="fw-bold"><td>Total</td><td class="text-end">{{ data.revenues|floatformat:"2g" }} €</td><td class="text-end">{{ data.expenses|floatformat:"2g" }} €</td>
+      <td class="text-end">{{ data.result|floatformat:"2g" }} €</td></tr></tfoot>
+  </table>
+</div>
+{% endblock %}

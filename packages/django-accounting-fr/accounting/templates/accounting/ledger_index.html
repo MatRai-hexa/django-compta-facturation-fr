@@ -1,0 +1,17 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Grand livre{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-3">Grand livre</h1>
+<p class="text-muted small">Choisissez un compte mouvementé.</p>
+<div class="glass-card">
+  <div class="row row-cols-1 row-cols-md-3 g-2">
+    {% for a in accounts %}
+      <div class="col"><a href="{% url 'accounting:general_ledger' a.code %}">{{ a.code }}</a> <span class="small text-muted">{{ a.name }}</span></div>
+    {% empty %}
+      <div class="col text-muted">Aucune écriture pour le moment.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

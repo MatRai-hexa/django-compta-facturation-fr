@@ -1,0 +1,17 @@
+<form method="get" class="row g-2 align-items-end mb-4">
+  <div class="col-auto">
+    <label class="form-label small mb-1" for="id_start">Du</label>
+    {{ form.start }}
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1" for="id_end">Au</label>
+    {{ form.end }}
+  </div>
+  {% if show_validated %}
+  <div class="col-auto form-check ms-2">
+    {{ form.validated_only }} <label class="form-check-label small" for="id_validated_only">Validées uniquement</label>
+  </div>
+  {% endif %}
+  <div class="col-auto"><button class="btn btn-sm btn-primary" type="submit">Afficher</button></div>
+  {% block extra %}{% endblock %}
+</form>

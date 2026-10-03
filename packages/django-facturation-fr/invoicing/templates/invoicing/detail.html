@@ -1,0 +1,58 @@
+{% extends "invoicing/_base.html" %}
+{% block page_title %}{{ invoice }}{% endblock %}
+{% block invoicing_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div><h1 class="h3 mb-1">{{ invoice.get_kind_display }} {{ invoice.number }}</h1>
+    <div class="small text-muted">Émise le {{ invoice.issue_date|date:"d/m/Y" }}{% if document_url %} · <a href="{{ document_url }}">pièce d'origine</a>{% endif %}</div></div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-sm btn-primary" href="{% url 'invoicing:pdf' invoice.pk %}" target="_blank" rel="noopener">Voir le PDF</a>
+    <a class="btn btn-sm btn-outline-light" href="{% url 'invoicing:pdf' invoice.pk %}?download=1">Télécharger</a>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="glass-card mb-3">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Désignation</th><th class="text-end">Qté</th><th class="text-end">PU HT</th><th class="text-end">TVA</th><th class="text-end">Montant HT</th></tr></thead>
+        <tbody>
+          {% for l in lines %}<tr><td>{{ l.description }}</td><td class="text-end">{{ l.quantity.normalize }}</td><td class="text-end">{{ l.net_price|floatformat:2 }}</td>
+            <td class="text-end">{% widthratio l.vat_rate 1 100 %} %</td><td class="text-end">{{ l.net_amount|floatformat:"2g" }}</td></tr>{% endfor %}
+          {% for a in invoice.allowances %}<tr><td>{{ a.label }}</td><td></td><td></td><td></td><td class="text-end">-{{ a.amount|floatformat:"2g" }}</td></tr>{% endfor %}
+        </tbody>
+        <tfoot>
+          <tr><td colspan="4" class="text-end">Total HT</td><td class="text-end">{{ invoice.total_ht|floatformat:"2g" }}</td></tr>
+          <tr><td colspan="4" class="text-end">TVA</td><td class="text-end">{{ invoice.total_vat|floatformat:"2g" }}</td></tr>
+          <tr class="fw-bold"><td colspan="4" class="text-end">Total TTC</td><td class="text-end">{{ invoice.total_ttc|floatformat:"2g" }} €</td></tr>
+        </tfoot>
+      </table>
+    </div>
+    {% if invoice.note %}<div class="glass-card small">{{ invoice.note }}</div>{% endif %}
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card mb-3 small">
+      <h2 class="h6">Client</h2>
+      <div>{{ invoice.buyer_name }}<br>{{ invoice.buyer_address }}<br>{{ invoice.buyer_postal_code }} {{ invoice.buyer_city }}</div>
+      {% if invoice.buyer_email %}<div class="text-muted">{{ invoice.buyer_email }}</div>{% endif %}
+      {% if invoice.buyer_siren %}<div>SIREN {{ invoice.buyer_siren }}</div>{% endif %}
+      {% if invoice.buyer_vat_number %}<div>TVA {{ invoice.buyer_vat_number }}</div>{% endif %}
+    </div>
+    <div class="glass-card mb-3 small">
+      <h2 class="h6">Paiement</h2>
+      {% if invoice.paid_at %}Acquittée le {{ invoice.paid_at|date:"d/m/Y" }}{% if invoice.payment_method %} ({{ invoice.payment_method }}){% endif %}{% else %}{{ invoice.payment_terms|default:"À régler" }}{% endif %}
+    </div>
+    <div class="glass-card small">
+      <h2 class="h6">Archivage</h2>
+      <div>PDF/A-3 Factur-X (profil EN 16931)</div>
+      <div class="text-muted text-break">SHA-256 : {{ invoice.pdf_sha256 }}</div>
+      {% if invoice.credited_invoice %}<div class="mt-2">Avoir sur <a href="{% url 'invoicing:detail' invoice.credited_invoice.pk %}">{{ invoice.credited_invoice.number }}</a></div>{% endif %}
+      {% for c in credit_notes %}<div class="mt-2">Annulée par l'avoir <a href="{% url 'invoicing:detail' c.pk %}">{{ c.number }}</a></div>{% endfor %}
+      {% if not invoice.is_credit_note and not credit_notes and perms.invoicing.add_invoice %}
+        <form method="post" action="{% url 'invoicing:credit' invoice.pk %}" class="mt-3" onsubmit="return confirm('Émettre un avoir total sur cette facture ?');">{% csrf_token %}
+          <input type="text" name="reason" class="form-control form-control-sm mb-2" placeholder="Motif (facultatif)" maxlength="200">
+          <button class="btn btn-sm btn-outline-danger">Émettre un avoir total</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

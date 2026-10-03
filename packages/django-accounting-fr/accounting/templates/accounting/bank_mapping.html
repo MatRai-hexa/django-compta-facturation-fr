@@ -1,0 +1,31 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Colonnes du relevé{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-1">Colonnes du relevé</h1>
+<p class="small text-muted mb-4">{{ filename }} — journal {{ journal.code }} (compte {{ account.code }}). Indiquez quelles colonnes contiennent la date, le libellé
+  et le montant (une colonne signée, ou deux colonnes débit et crédit).</p>
+
+<form method="post" action="{% url 'accounting:bank_index' %}" class="glass-card">{% csrf_token %}
+  <input type="hidden" name="journal" value="{{ journal.pk }}">
+  <input type="hidden" name="filename" value="{{ filename }}">
+  <input type="hidden" name="content" value="{{ content }}">
+  <input type="hidden" name="closing_balance" value="{{ closing_balance }}">
+  <div class="row g-3">
+    {% for role, label, required in roles %}
+      <div class="col-md-4">
+        <label class="form-label small mb-1" for="map-{{ role }}">{{ label }}{% if required %} *{% endif %}</label>
+        <select name="map_{{ role }}" id="map-{{ role }}" class="form-select form-select-sm">
+          <option value="">—</option>
+          {% for index, header in headers %}<option value="{{ index }}">{{ index|add:1 }}. {{ header|default:"(sans titre)" }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="mt-3 d-flex gap-2">
+    <button class="btn btn-primary btn-sm">Importer</button>
+    <a class="btn btn-outline-light btn-sm" href="{% url 'accounting:bank_index' %}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

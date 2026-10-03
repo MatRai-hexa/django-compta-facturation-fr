@@ -1,0 +1,63 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Intégrité des écritures{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-2">Intégrité des écritures</h1>
+<p class="small text-muted mb-4">Chaque écriture validée porte une empreinte SHA-256 de son contenu et de l'empreinte de la précédente :
+  une modification, une suppression ou une insertion après validation, même directement en base, casse la chaîne. À la clôture,
+  le dernier maillon devient le sceau de l'exercice : conservez-le hors du logiciel (il est aussi dans le journal d'audit).</p>
+
+{% if not channels %}
+  <div class="alert alert-warning small">Le sceau n'est envoyé nulle part hors du logiciel : renseignez les destinataires des sceaux
+    dans les paramètres comptables (et, à l'installation, un dossier d'archive <code>ACCOUNTING["SEAL_ARCHIVE_DIR"]</code>).
+    Sans copie externe, quelqu'un qui accède à la base et au code pourrait recalculer toute la chaîne.</div>
+{% endif %}
+
+{% if check %}
+  <div class="alert {% if check.ok %}alert-success{% else %}alert-danger{% endif %}">{{ check.message }}</div>
+{% endif %}
+
+{% if result %}
+  {% if result.ok %}
+    <div class="alert alert-success">Chaîne intacte : {{ result.count }} écriture{{ result.count|pluralize }} vérifiée{{ result.count|pluralize }}
+      le {{ result.checked_at|date:"d/m/Y à H:i" }}. Dernier maillon n° {{ result.last_index }} : <code>{{ result.last_seal }}</code></div>
+  {% else %}
+    <div class="alert alert-danger"><strong>{{ result.errors|length }} anomalie{{ result.errors|length|pluralize }} d'intégrité</strong>
+      <ul class="mb-0 small">{% for e in result.errors %}<li>Maillon {{ e.index|default:"—" }} {{ e.number }} : {{ e.message }}</li>{% endfor %}</ul></div>
+  {% endif %}
+{% else %}
+  <form method="get" class="mb-4"><input type="hidden" name="verifier" value="1"><button class="btn btn-primary btn-sm">Vérifier toute la chaîne</button></form>
+{% endif %}
+
+<div class="glass-card mb-4">
+  <h2 class="h5">Contrôler un sceau conservé</h2>
+  <p class="small text-muted">Reportez le maillon et le sceau d'un e-mail ou d'un fichier d'archive : ils doivent correspondre à la chaîne actuelle.</p>
+  <form method="post" class="row g-2 align-items-end">{% csrf_token %}
+    <div class="col-auto"><label class="form-label small" for="seal-index">Maillon</label><input id="seal-index" name="index" inputmode="numeric" class="form-control form-control-sm" value="{{ check.index|default:'' }}" required></div>
+    <div class="col"><label class="form-label small" for="seal-value">Sceau</label><input id="seal-value" name="seal" class="form-control form-control-sm font-monospace" maxlength="64" required></div>
+    <div class="col-auto"><button class="btn btn-sm btn-outline-primary">Contrôler</button></div>
+  </form>
+</div>
+
+<div class="glass-card mb-4">
+  <h2 class="h5">Derniers envois du sceau</h2>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Date</th><th>Motif</th><th>Maillon</th><th>Canal</th><th>Destination</th></tr></thead>
+    <tbody>{% for a in anchors %}
+      <tr><td>{{ a.sent_at|date:"d/m/Y H:i" }}</td><td>{{ a.reason }}</td><td>{{ a.index }}</td><td>{{ a.get_channel_display }}</td>
+        <td class="small">{{ a.destination }}{% if a.error %}<div class="text-danger">{{ a.error }}</div>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="5" class="text-muted small">Aucun envoi pour le moment (tâche quotidienne <code>ancrer_sceau</code>).</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+
+<div class="glass-card">
+  <h2 class="h5">Sceaux de clôture</h2>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Exercice</th><th>Clôturé le</th><th>Maillon</th><th>Sceau</th></tr></thead>
+    <tbody>{% for p in periods %}
+      <tr><td>{{ p.name }}</td><td>{{ p.closed_at|date:"d/m/Y" }}</td><td>{{ p.closing_index }}</td><td><code class="small">{{ p.closing_seal }}</code></td></tr>
+    {% empty %}<tr><td colspan="4" class="text-muted small">Aucun exercice clôturé.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

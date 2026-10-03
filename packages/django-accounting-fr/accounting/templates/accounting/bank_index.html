@@ -1,0 +1,80 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Rapprochement bancaire{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-1">Rapprochement bancaire</h1>
+<p class="small text-muted mb-4">Un rapprochement par journal de trésorerie : importez le relevé de la banque (ou du prestataire de paiement) et pointez-le avec le compte de contrepartie du journal. Ce qui reste non pointé explique l'écart entre le relevé et la comptabilité.</p>
+
+<div class="row g-3 mb-4">
+  {% for s in summaries %}
+    <div class="col-md-6 col-xl-4">
+      <div class="glass-card h-100">
+        <div class="d-flex justify-content-between align-items-start">
+          <div><strong>{{ s.journal.code }}</strong> {{ s.journal.label }}<div class="small text-muted">Compte {{ s.account.code }} {{ s.account.name }}</div></div>
+          <div class="fw-semibold">{{ s.balance|floatformat:"2g" }} €</div>
+        </div>
+        <div class="small text-muted mb-2">{% if s.last %}Dernier relevé au {{ s.last.date_end|date:"d/m/Y" }}{% else %}Aucun relevé importé{% endif %}</div>
+        <div class="small mb-3">
+          <span class="{% if s.lines %}text-warning{% endif %}">{{ s.lines }} opération{{ s.lines|pluralize }} du relevé à pointer</span> ·
+          {{ s.entries }} écriture{{ s.entries|pluralize }} non pointée{{ s.entries|pluralize }}
+        </div>
+        <a class="btn btn-sm btn-primary" href="{% url 'accounting:bank_account' s.journal.code %}">Pointer</a>
+        <a class="btn btn-sm btn-outline-light" href="{% url 'accounting:bank_state' s.journal.code %}">État de rapprochement</a>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12"><div class="glass-card text-muted">Aucun journal de banque doté d'un compte de trésorerie (Comptabilité › Journaux).</div></div>
+  {% endfor %}
+</div>
+
+{% if perms.accounting.reconcile_bank and journals %}
+<div class="glass-card mb-4">
+  <h2 class="h5">Importer un relevé</h2>
+  <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <div class="col-md-3"><label class="form-label small mb-1" for="bank-journal">Journal</label>
+      <select name="journal" id="bank-journal" class="form-select form-select-sm">{% for j in journals %}<option value="{{ j.pk }}">{{ j.code }} {{ j.label }} ({{ j.account.code }})</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label small mb-1" for="bank-file">Fichier</label>
+      <input type="file" name="file" id="bank-file" class="form-control form-control-sm" accept=".csv,.txt,.ofx,.qfx,.xml,.cfonb,.120" required></div>
+    <div class="col-md-3"><label class="form-label small mb-1" for="bank-closing">Solde final du relevé <span class="text-muted">(facultatif)</span></label>
+      <input type="text" name="closing_balance" id="bank-closing" inputmode="decimal" class="form-control form-control-sm" placeholder="ex. 12 450,20"></div>
+    <div class="col-md-2"><button class="btn btn-sm btn-primary w-100">Importer</button></div>
+  </form>
+  <p class="small text-muted mt-2 mb-0">Formats : CSV de votre banque en ligne, OFX, CAMT.053 (XML ISO 20022), CFONB 120. Les opérations déjà importées
+    (relevés qui se chevauchent) sont ignorées, puis le pointage automatique s'applique. Le solde final sert à l'état de rapprochement
+    quand le fichier ne l'indique pas (CSV).</p>
+</div>
+{% endif %}
+
+<div class="glass-card">
+  <h2 class="h5">Relevés importés</h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Journal</th><th>Fichier</th><th>Période</th><th class="text-end">Solde final</th><th>Importé</th><th></th></tr></thead>
+      <tbody>
+        {% for st in statements %}
+          <tr>
+            <td>{% for j in st.account.treasury_journals.all %}{{ j.code }} {% endfor %}<span class="small text-muted">{{ st.account.code }}</span></td>
+            <td class="small">{{ st.filename }} <span class="text-muted">{{ st.get_file_format_display }}</span></td>
+            <td class="small">{{ st.date_start|date:"d/m/Y" }} → {{ st.date_end|date:"d/m/Y" }}</td>
+            <td class="text-end">{% if st.closing_balance is not None %}{{ st.closing_balance|floatformat:"2g" }}{% else %}—{% endif %}</td>
+            <td class="small">{{ st.imported_at|date:"d/m/Y H:i" }}{% if st.imported_by %} · {{ st.imported_by }}{% endif %}</td>
+            <td class="text-end">{% if perms.accounting.reconcile_bank %}
+              <form method="post" action="{% url 'accounting:bank_statement_delete' st.pk %}" onsubmit="return confirm('Supprimer ce relevé et ses opérations ?');">{% csrf_token %}
+                <button class="btn btn-link btn-sm p-0 text-danger">supprimer</button></form>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted">Aucun relevé importé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if statements.has_other_pages %}
+    <div class="d-flex gap-2 mt-2 small">
+      {% if statements.has_previous %}<a href="?page={{ statements.previous_page_number }}">‹ Précédents</a>{% endif %}
+      <span class="text-muted">Page {{ statements.number }} / {{ statements.paginator.num_pages }}</span>
+      {% if statements.has_next %}<a href="?page={{ statements.next_page_number }}">Suivants ›</a>{% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

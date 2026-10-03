@@ -1,0 +1,29 @@
+{% extends "invoicing/_base.html" %}
+{% block page_title %}Factures reçues{% endblock %}
+{% block invoicing_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <h1 class="h3 mb-0">Factures reçues</h1>
+  {% if perms.invoicing.add_invoice %}
+  <form method="post" action="{% url 'invoicing:incoming_upload' %}" enctype="multipart/form-data" class="d-flex gap-2">{% csrf_token %}
+    <input type="file" name="files" multiple accept=".pdf,.xml" class="form-control form-control-sm" required>
+    <button class="btn btn-sm btn-primary text-nowrap">Importer</button>
+  </form>
+  {% endif %}
+</div>
+<p class="small text-muted">Factures électroniques de vos fournisseurs (PDF Factur-X, XML CII ou UBL), reçues de la plateforme ou importées.
+  Approuvez-les pour les passer en comptabilité ; un refus doit être motivé.</p>
+<form method="get" class="mb-3"><select name="status" class="form-select form-select-sm w-auto d-inline" onchange="this.form.submit()">
+  <option value="">Tous les statuts</option>{% for code, label in statuses %}<option value="{{ code }}" {% if status == code|stringformat:"d" %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></form>
+<div class="glass-card">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Fournisseur</th><th>Numéro</th><th>Date</th><th class="text-end">TTC</th><th>Échéance</th><th>Statut</th></tr></thead>
+    <tbody>{% for i in page %}
+      <tr><td>{{ i.seller_name }} <span class="small text-muted">{{ i.seller_siren }}</span></td>
+        <td><a href="{% url 'invoicing:incoming_detail' i.pk %}">{{ i.number }}</a>{% if i.is_credit_note %} <span class="badge bg-secondary">avoir</span>{% endif %}</td>
+        <td>{{ i.issue_date|date:"d/m/Y" }}</td><td class="text-end">{{ i.total_ttc|floatformat:"2g" }} €</td>
+        <td class="small">{{ i.due_date|date:"d/m/Y"|default:"—" }}</td>
+        <td class="small">{{ i.status_label }}{% if i.status_reason %}<div class="text-muted">{{ i.status_reason|truncatechars:60 }}</div>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="6" class="text-muted">Aucune facture reçue.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

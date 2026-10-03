@@ -1,0 +1,29 @@
+{% extends "invoicing/_base.html" %}
+{% block page_title %}Paramètres de facturation{% endblock %}
+{% block invoicing_content %}
+<h1 class="h3 mb-1">Paramètres de facturation</h1>
+<p class="small text-muted">Champ vide : valeur reprise des réglages du projet (identité de la boutique). Les factures déjà émises ne changent pas.</p>
+<form method="post" class="glass-card" novalidate>
+  {% csrf_token %}
+  <div class="row">
+    {% for field in form %}
+      <div class="{% if field.name == 'late_penalties' or field.name == 'footer' or field.name == 'vat_exemption' %}col-12{% else %}col-md-6{% endif %} mb-3">
+        {% if field.field.widget.input_type == "checkbox" %}
+          <div class="form-check">{{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+        {% else %}
+          <label class="form-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        {% endif %}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  <button class="btn btn-primary">Enregistrer</button>
+</form>
+<div class="glass-card mt-3 small">
+  <h2 class="h6">Vendeur tel qu'il figurera sur les prochaines factures</h2>
+  <div>{{ seller.name }} {{ seller.legal_form }}{% if seller.capital %} au capital de {{ seller.capital }}{% endif %}</div>
+  <div>{{ seller.address }} {{ seller.postal_code }} {{ seller.city }}</div>
+  <div>SIREN {{ seller.siren|default:"— manquant" }} · TVA {{ seller.vat_number|default:"—" }} · {{ seller.rcs }}</div>
+</div>
+{% endblock %}

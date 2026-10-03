@@ -1,0 +1,81 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}{{ asset }}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ asset }}</h1>
+    <div class="small text-muted"><a href="{% url 'accounting:fixed_assets' %}">‹ Immobilisations</a> · compte {{ asset.account.code }} {{ asset.account.name }}
+      {% if depreciation_account %}· amortissements {{ depreciation_account.code }} · dotations {{ expense_account.code }}{% endif %}</div>
+  </div>
+  {% if not asset.is_disposed and perms.accounting.change_fixedasset %}<a class="btn btn-sm btn-outline-light" href="{% url 'accounting:fixed_asset_edit' asset.pk %}">Modifier</a>{% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="glass-card h-100"><div class="small text-muted">Valeur d'origine HT</div><div class="fs-5 fw-bold">{{ asset.cost|floatformat:"2g" }} €</div>
+    <div class="small text-muted">acquise le {{ asset.acquisition_date|date:"d/m/Y" }}, en service le {{ asset.service_date|date:"d/m/Y" }}</div></div></div>
+  <div class="col-md-3"><div class="glass-card h-100"><div class="small text-muted">Amortissement</div>
+    <div class="fs-5 fw-bold">{% if asset.method == "none" %}Non amortissable{% else %}{{ asset.get_method_display|truncatewords:1 }} {{ asset.duration_months }} mois{% endif %}</div>
+    {% if impairment %}<div class="small text-muted">dépréciation {{ impairment|floatformat:"2g" }} €</div>{% endif %}</div></div>
+  <div class="col-md-3"><div class="glass-card h-100"><div class="small text-muted">Amortissements passés</div><div class="fs-5 fw-bold">{{ posted|floatformat:"2g" }} €</div></div></div>
+  <div class="col-md-3"><div class="glass-card h-100">
+    {% if asset.is_disposed %}
+      <div class="small text-muted">Sortie de l'actif</div><div class="fs-5 fw-bold">{{ asset.disposal_date|date:"d/m/Y" }}</div>
+      <div class="small text-muted">{% if asset.disposal_price %}cédée {{ asset.disposal_price|floatformat:"2g" }} € HT{% else %}mise au rebut{% endif %}{% if disposal %} · <a href="{% url 'accounting:entry_detail' disposal.pk %}">{{ disposal.number }}</a>{% endif %}</div>
+    {% else %}
+      <div class="small text-muted">Valeur nette comptable</div><div class="fs-5 fw-bold">{{ net|floatformat:"2g" }} €</div>
+    {% endif %}
+  </div></div>
+</div>
+
+{% if schedule %}
+<div class="glass-card mb-4">
+  <h2 class="h5">Plan d'amortissement</h2>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Exercice</th><th class="text-end">Dotation</th><th class="text-end">Cumul</th><th class="text-end">Valeur nette</th><th class="text-end">Passée</th></tr></thead>
+    <tbody>{% for r in schedule %}
+      <tr><td>{{ r.name }} <span class="small text-muted">({{ r.start|date:"d/m/Y" }} – {{ r.end|date:"d/m/Y" }})</span></td>
+        <td class="text-end">{{ r.amount|floatformat:"2g" }} €</td><td class="text-end">{{ r.cumulative|floatformat:"2g" }} €</td>
+        <td class="text-end">{{ r.net|floatformat:"2g" }} €</td><td class="text-end small">{% if r.posted %}{{ r.posted|floatformat:"2g" }} €{% else %}—{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if records %}
+<div class="glass-card mb-4">
+  <h2 class="h5">Dotations passées</h2>
+  <table class="table table-sm mb-0">{% for r in records %}
+    <tr><td>{{ r.date|date:"d/m/Y" }}</td><td>{{ r.get_kind_display }}</td><td><a href="{% url 'accounting:entry_detail' r.transaction_id %}">{{ r.transaction.number }}</a></td><td class="text-end">{{ r.amount|floatformat:"2g" }} €</td></tr>
+  {% endfor %}</table>
+</div>
+{% endif %}
+
+{% if not asset.is_disposed and perms.accounting.change_fixedasset and perms.accounting.add_transaction and perms.accounting.validate_transaction %}
+<div class="glass-card mb-4">
+  <h2 class="h5">Dépréciation</h2>
+  <p class="small text-muted">Valeur actuelle inférieure à la valeur nette comptable : dotation 6816 / 29 ; montant négatif pour une reprise
+    (29 / 7816). Le plan d'amortissement n'est pas recalculé : à revoir avec l'expert-comptable si la dépréciation est durable.</p>
+  <form method="post" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="action" value="impair">
+    <div class="col-auto">{{ impairment_form.date.label_tag }} {{ impairment_form.date }}</div>
+    <div class="col-auto">{{ impairment_form.amount.label_tag }} {{ impairment_form.amount }}</div>
+    <div class="col-auto"><button class="btn btn-sm btn-outline-light">Passer l'écriture</button></div>
+  </form>
+</div>
+
+<div class="glass-card">
+  <h2 class="h5">Sortie de l'actif (cession ou mise au rebut)</h2>
+  <p class="small text-muted">Dotation complémentaire jusqu'à la date de sortie, puis écriture de sortie : amortissements (28) et valeur nette
+    comptable (675) au débit, valeur d'origine au crédit ; prix de cession en 462 / 775. La TVA éventuelle sur la cession est à saisir à part.</p>
+  <form method="post" class="row g-2 align-items-end" onsubmit="return confirm('Sortir cette immobilisation de l’actif ? Les écritures seront validées.');">{% csrf_token %}
+    <input type="hidden" name="action" value="dispose">
+    <div class="col-auto">{{ form.date.label_tag }} {{ form.date }}{{ form.date.errors }}</div>
+    <div class="col-auto">{{ form.price.label_tag }} {{ form.price }}{{ form.price.errors }}</div>
+    <div class="col-auto">{{ form.vat_rate.label_tag }} {{ form.vat_rate }}</div>
+    <div class="col-auto"><button class="btn btn-sm btn-outline-warning">Sortir de l'actif</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,20 @@
+<div class="table-responsive">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Numéro</th><th>Date</th><th>Journal</th><th>Libellé</th><th>Pièce</th><th class="text-end">Montant</th><th>Statut</th></tr></thead>
+    <tbody>
+      {% for t in entries %}
+        <tr>
+          <td><a href="{% url 'accounting:entry_detail' t.pk %}">{{ t.number|default:"—" }}</a></td>
+          <td>{{ t.date|date:"d/m/Y" }}</td>
+          <td>{{ t.journal.code }}</td>
+          <td>{{ t.description }}</td>
+          <td class="small">{{ t.reference }}</td>
+          <td class="text-end">{{ t.amount|floatformat:"2g" }} €</td>
+          <td>{% if t.is_validated %}<span class="badge bg-success">Validée</span>{% else %}<span class="badge bg-warning text-dark">Brouillon</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-muted">Aucune écriture.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

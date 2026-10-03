@@ -1,0 +1,34 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Compte de résultat{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-3">Compte de résultat</h1>
+{% include "accounting/_period_filter.html" with show_validated=True %}
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h5">Produits (classe 7)</h2>
+      <table class="table table-sm mb-0">
+        {% for r in statement.revenues %}<tr><td>{{ r.code }} {{ r.name }}</td><td class="text-end">{{ r.amount|floatformat:"2g" }} €</td></tr>{% empty %}<tr><td class="text-muted">Aucun produit.</td></tr>{% endfor %}
+        <tr class="fw-bold"><td>Total des produits</td><td class="text-end">{{ statement.total_revenues|floatformat:"2g" }} €</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <h2 class="h5">Charges (classe 6)</h2>
+      <table class="table table-sm mb-0">
+        {% for r in statement.expenses %}<tr><td>{{ r.code }} {{ r.name }}</td><td class="text-end">{{ r.amount|floatformat:"2g" }} €</td></tr>{% empty %}<tr><td class="text-muted">Aucune charge.</td></tr>{% endfor %}
+        <tr class="fw-bold"><td>Total des charges</td><td class="text-end">{{ statement.total_expenses|floatformat:"2g" }} €</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="glass-card mt-4 d-flex justify-content-between align-items-center">
+  <span class="fs-5">{% if statement.profit >= 0 %}Bénéfice{% else %}Perte{% endif %} de la période</span>
+  <span class="fs-4 fw-bold">{{ statement.profit|floatformat:"2g" }} € <span class="small text-muted">({{ statement.margin|floatformat:1 }} % du CA)</span></span>
+</div>
+{% endblock %}

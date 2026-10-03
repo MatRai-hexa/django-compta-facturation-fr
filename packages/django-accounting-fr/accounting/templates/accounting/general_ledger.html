@@ -1,0 +1,41 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Grand livre {{ ledger.account.code }}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <h1 class="h3 mb-0">Grand livre — {{ ledger.account }}</h1>
+  {% if reconcilable %}<a class="btn btn-sm btn-outline-light no-print" href="{% url 'accounting:reconciliation' %}?account={{ ledger.account.code }}">Lettrage</a>{% endif %}
+</div>
+{% include "accounting/_period_filter.html" with show_validated=True %}
+
+<div class="glass-card">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Date</th><th>Numéro</th><th>Journal</th><th>Pièce</th><th>Libellé</th><th class="text-end">Débit</th><th class="text-end">Crédit</th><th class="text-end">Solde</th><th>Let.</th></tr></thead>
+      <tbody>
+        <tr class="text-muted"><td colspan="7">Solde au {{ start|date:"d/m/Y" }}</td><td class="text-end">{{ ledger.opening|floatformat:"2g" }}</td><td></td></tr>
+        {% for row in ledger.rows %}
+          <tr>
+            <td>{{ row.txn.date|date:"d/m/Y" }}</td>
+            <td><a href="{% url 'accounting:entry_detail' row.txn.pk %}">{{ row.txn.number|default:"brouillon" }}</a></td>
+            <td>{{ row.txn.journal.code }}</td>
+            <td class="small">{{ row.txn.reference }}</td>
+            <td>{{ row.entry.label }}{% if row.entry.auxiliary_label %} <span class="small text-muted">· {{ row.entry.auxiliary_label }}</span>{% endif %}</td>
+            <td class="text-end">{% if row.entry.debit %}{{ row.entry.debit|floatformat:"2g" }}{% endif %}</td>
+            <td class="text-end">{% if row.entry.credit %}{{ row.entry.credit|floatformat:"2g" }}{% endif %}</td>
+            <td class="text-end">{{ row.balance|floatformat:"2g" }}</td>
+            <td class="small">{{ row.entry.reconciliation_ref }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold"><td colspan="5">Totaux et solde au {{ end|date:"d/m/Y" }}</td>
+          <td class="text-end">{{ ledger.debit|floatformat:"2g" }}</td><td class="text-end">{{ ledger.credit|floatformat:"2g" }}</td>
+          <td class="text-end">{{ ledger.closing|floatformat:"2g" }}</td><td></td></tr>
+      </tfoot>
+    </table>
+  </div>
+  <p class="small text-muted mt-2 mb-0">Solde positif : débiteur. Solde négatif : créditeur.</p>
+</div>
+{% endblock %}

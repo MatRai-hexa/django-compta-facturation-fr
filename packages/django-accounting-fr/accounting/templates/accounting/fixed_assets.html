@@ -1,0 +1,51 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Immobilisations{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Immobilisations</h1>
+    <div class="small text-muted">Registre, amortissement linéaire prorata temporis (année de 360 jours) et dotations de fin d'exercice.</div>
+  </div>
+  {% if perms.accounting.add_fixedasset %}<a class="btn btn-sm btn-primary" href="{% url 'accounting:fixed_asset_create' %}">Nouvelle immobilisation</a>{% endif %}
+</div>
+
+{% if gaps %}
+<div class="alert alert-warning small">
+  <strong>Registre et comptabilité ne concordent pas :</strong>
+  {% for g in gaps %}compte {{ g.account }} : {{ g.books|floatformat:"2g" }} € en comptabilité, {{ g.register|floatformat:"2g" }} € au registre{% if not forloop.last %} · {% endif %}{% endfor %}.
+  <div>Chaque acquisition passée en classe 2 doit figurer au registre, et inversement.</div>
+</div>
+{% endif %}
+
+<div class="glass-card mb-4">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Immobilisation</th><th>Compte</th><th>Mise en service</th><th>Durée</th><th class="text-end">Valeur d'origine</th>
+      <th class="text-end">Amortissements</th><th class="text-end">Valeur nette</th><th>Statut</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td><a href="{% url 'accounting:fixed_asset_detail' r.asset.pk %}">{{ r.asset }}</a></td><td>{{ r.asset.account.code }}</td>
+        <td>{{ r.asset.service_date|date:"d/m/Y" }}</td><td>{% if r.asset.method == "linear" %}{{ r.asset.duration_months }} mois{% else %}—{% endif %}</td>
+        <td class="text-end">{{ r.asset.cost|floatformat:"2g" }} €</td><td class="text-end">{{ r.depreciation|floatformat:"2g" }} €</td>
+        <td class="text-end">{{ r.net|floatformat:"2g" }} €</td>
+        <td class="small">{% if r.asset.is_disposed %}{% if r.asset.disposal_price %}Cédée{% else %}Mise au rebut{% endif %} le {{ r.asset.disposal_date|date:"d/m/Y" }}{% else %}À l'actif{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="8" class="text-muted small">Aucune immobilisation au registre.</td></tr>{% endfor %}</tbody>
+    {% if rows %}<tfoot><tr class="fw-bold"><td colspan="4">Total à l'actif</td><td class="text-end">{{ totals.cost|floatformat:"2g" }} €</td>
+      <td class="text-end">{{ totals.depreciation|floatformat:"2g" }} €</td><td class="text-end">{{ totals.net|floatformat:"2g" }} €</td><td></td></tr></tfoot>{% endif %}
+  </table>
+</div>
+
+<div class="glass-card">
+  <h2 class="h5">Dotations aux amortissements</h2>
+  <p class="small text-muted">Écriture validée (journal OD) au dernier jour de l'exercice : débit 6811, crédit 28, pour ce qui reste dû à
+    cette date. À passer avant la clôture ; une nouvelle passe ne reprend que le complément (immobilisation ajoutée entre-temps).</p>
+  <table class="table table-sm align-middle mb-0">
+    <tbody>{% for period, amount in pending %}
+      <tr><td>Exercice {{ period.name }} (au {{ period.date_end|date:"d/m/Y" }})</td><td class="text-end">{{ amount|floatformat:"2g" }} € à passer</td>
+        <td class="text-end">{% if amount and perms.accounting.add_transaction and perms.accounting.validate_transaction %}
+          <form method="post" class="d-inline" onsubmit="return confirm('Passer et valider les dotations de l’exercice {{ period.name }} ?');">{% csrf_token %}
+            <input type="hidden" name="period" value="{{ period.pk }}"><button class="btn btn-sm btn-outline-primary">Passer les dotations</button></form>{% endif %}</td></tr>
+    {% empty %}<tr><td class="text-muted small">Aucun exercice ouvert.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

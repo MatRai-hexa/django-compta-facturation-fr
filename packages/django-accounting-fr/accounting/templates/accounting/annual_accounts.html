@@ -1,0 +1,81 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Comptes annuels {{ data.period.name }}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Comptes annuels — exercice {{ data.period.name }}</h1>
+    <div class="small text-muted">Du {{ data.period.date_start|date:"d/m/Y" }} au {{ data.period.date_end|date:"d/m/Y" }}{% if not data.period.is_closed %} · exercice ouvert : chiffres provisoires{% endif %}
+      · présentation du plan comptable général, écritures validées.</div>
+  </div>
+  <form method="get" class="d-flex gap-2 align-items-end no-print">
+    <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
+      {% for p in periods %}<option value="{{ p.pk }}" {% if p.pk == data.period.pk %}selected{% endif %}>Exercice {{ p.name }}</option>{% endfor %}
+    </select>
+    {% if perms.accounting.export_data %}<a class="btn btn-sm btn-outline-light" href="?period={{ data.period.pk }}&format=csv">CSV</a>{% endif %}
+    <button type="button" class="btn btn-sm btn-outline-light" onclick="window.print()">Imprimer</button>
+  </form>
+</div>
+
+{% if not data.balance.is_balanced %}<div class="alert alert-danger small">Actif et passif ne sont pas égaux : vérifier les brouillons et les comptes non rattachés.</div>{% endif %}
+{% if data.income.unmapped %}<div class="alert alert-warning small">Comptes de gestion rattachés par défaut aux « autres produits / charges » : {{ data.income.unmapped|join:", " }}.</div>{% endif %}
+
+<div class="glass-card mb-4">
+  <h2 class="h5">Bilan actif</h2>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th></th><th class="text-end">Brut</th><th class="text-end">Amort. et dépréc.</th><th class="text-end">Net {{ data.period.name }}</th>
+      {% if data.balance_previous %}<th class="text-end">Net {{ data.previous.name }}</th>{% endif %}</tr></thead>
+    <tbody>{% for group in data.balance.assets %}
+      <tr class="table-light"><td colspan="5" class="fw-semibold small">{{ group.label }}</td></tr>
+      {% for r in group.rows %}<tr><td class="ps-3">{{ r.label }}</td><td class="text-end">{{ r.gross|floatformat:"2g" }}</td>
+        <td class="text-end">{{ r.contra|floatformat:"2g" }}</td><td class="text-end">{{ r.net|floatformat:"2g" }}</td>
+        {% if data.balance_previous %}<td class="text-end text-muted">{% for g in data.balance_previous.assets %}{% for p in g.rows %}{% if p.key == r.key %}{{ p.net|floatformat:"2g" }}{% endif %}{% endfor %}{% endfor %}</td>{% endif %}</tr>{% endfor %}
+      <tr class="fw-semibold"><td>Total {{ group.label|lower }}</td><td class="text-end">{{ group.gross|floatformat:"2g" }}</td><td class="text-end">{{ group.contra|floatformat:"2g" }}</td>
+        <td class="text-end">{{ group.net|floatformat:"2g" }}</td>{% if data.balance_previous %}<td></td>{% endif %}</tr>
+    {% endfor %}</tbody>
+    <tfoot><tr class="fw-bold"><td>Total actif</td><td></td><td></td><td class="text-end">{{ data.balance.total_assets|floatformat:"2g" }} €</td>
+      {% if data.balance_previous %}<td class="text-end text-muted">{{ data.balance_previous.total_assets|floatformat:"2g" }} €</td>{% endif %}</tr></tfoot>
+  </table>
+</div>
+
+<div class="glass-card mb-4">
+  <h2 class="h5">Bilan passif</h2>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th></th><th class="text-end">{{ data.period.name }}</th>{% if data.balance_previous %}<th class="text-end">{{ data.previous.name }}</th>{% endif %}</tr></thead>
+    <tbody>{% for group in data.balance.liabilities %}
+      <tr class="table-light"><td colspan="3" class="fw-semibold small">{{ group.label }}</td></tr>
+      {% for r in group.rows %}<tr><td class="ps-3">{{ r.label }}</td><td class="text-end">{{ r.amount|floatformat:"2g" }}</td>
+        {% if data.balance_previous %}<td class="text-end text-muted">{% for g in data.balance_previous.liabilities %}{% for p in g.rows %}{% if p.key == r.key %}{{ p.amount|floatformat:"2g" }}{% endif %}{% endfor %}{% endfor %}</td>{% endif %}</tr>{% endfor %}
+      <tr class="fw-semibold"><td>Total {{ group.label|lower }}</td><td class="text-end">{{ group.amount|floatformat:"2g" }}</td>{% if data.balance_previous %}<td></td>{% endif %}</tr>
+    {% endfor %}</tbody>
+    <tfoot><tr class="fw-bold"><td>Total passif</td><td class="text-end">{{ data.balance.total_liabilities|floatformat:"2g" }} €</td>
+      {% if data.balance_previous %}<td class="text-end text-muted">{{ data.balance_previous.total_liabilities|floatformat:"2g" }} €</td>{% endif %}</tr></tfoot>
+  </table>
+</div>
+
+<div class="glass-card mb-3">
+  <h2 class="h5">Compte de résultat</h2>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th></th><th class="text-end">{{ data.period.name }}</th>{% if data.income_previous %}<th class="text-end">{{ data.previous.name }}</th>{% endif %}</tr></thead>
+    <tbody>
+      {% for key, section in data.income.sections.items %}
+        <tr class="table-light"><td colspan="3" class="fw-semibold small">{{ section.label }}</td></tr>
+        {% for line in section.lines %}{% if line.amount %}<tr><td class="ps-3">{{ line.label }}</td><td class="text-end">{{ line.amount|floatformat:"2g" }}</td>
+          {% if data.income_previous %}<td class="text-end text-muted"></td>{% endif %}</tr>{% endif %}{% endfor %}
+        <tr class="fw-semibold"><td>Total {{ section.label|lower }}</td><td class="text-end">{{ section.total|floatformat:"2g" }}</td>
+          {% if data.income_previous %}<td class="text-end text-muted">{% for k, s in data.income_previous.sections.items %}{% if k == key %}{{ s.total|floatformat:"2g" }}{% endif %}{% endfor %}</td>{% endif %}</tr>
+        {% if key == "operating_expenses" %}<tr class="fw-bold"><td>Résultat d'exploitation</td><td class="text-end">{{ data.income.operating|floatformat:"2g" }}</td>{% if data.income_previous %}<td class="text-end text-muted">{{ data.income_previous.operating|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
+        {% if key == "financial_expenses" %}<tr class="fw-bold"><td>Résultat financier</td><td class="text-end">{{ data.income.financial|floatformat:"2g" }}</td>{% if data.income_previous %}<td class="text-end text-muted">{{ data.income_previous.financial|floatformat:"2g" }}</td>{% endif %}</tr>
+          <tr class="fw-bold"><td>Résultat courant avant impôts</td><td class="text-end">{{ data.income.current|floatformat:"2g" }}</td>{% if data.income_previous %}<td class="text-end text-muted">{{ data.income_previous.current|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
+        {% if key == "exceptional_expenses" %}<tr class="fw-bold"><td>Résultat exceptionnel</td><td class="text-end">{{ data.income.exceptional|floatformat:"2g" }}</td>{% if data.income_previous %}<td class="text-end text-muted">{{ data.income_previous.exceptional|floatformat:"2g" }}</td>{% endif %}</tr>{% endif %}
+      {% endfor %}
+    </tbody>
+    <tfoot><tr class="fw-bold fs-6"><td>{% if data.income.net >= 0 %}Bénéfice{% else %}Perte{% endif %}</td><td class="text-end">{{ data.income.net|floatformat:"2g" }} €</td>
+      {% if data.income_previous %}<td class="text-end text-muted">{{ data.income_previous.net|floatformat:"2g" }} €</td>{% endif %}</tr></tfoot>
+  </table>
+</div>
+<p class="small text-muted mb-0">Document de travail établi depuis la comptabilité. La liasse fiscale (2050 et suivants, ou 2033 au régime
+  simplifié) et sa transmission EDI-TDFC restent du ressort de l'expert-comptable, qui valide aussi les écritures d'inventaire
+  (stocks, charges et produits constatés d'avance, provisions).</p>
+{% endblock %}

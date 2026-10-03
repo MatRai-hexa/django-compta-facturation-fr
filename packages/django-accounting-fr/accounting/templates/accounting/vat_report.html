@@ -1,0 +1,92 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}TVA{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-2">Récapitulatif de TVA</h1>
+<p class="text-muted small mb-4">Aide à la déclaration (CA3) : montants issus de la comptabilité. À contrôler avant télédéclaration.</p>
+{% include "accounting/_period_filter.html" with show_validated=True %}
+
+<div class="glass-card mb-4">
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Taux</th><th class="text-end">Base HT (ventes et ports)</th><th class="text-end">TVA collectée</th></tr></thead>
+    <tbody>
+      {% for r in vat.rows %}
+        <tr><td>{% if r.rate is None %}Taux non précisé{% else %}{% widthratio r.rate 1 100 %} %{% if r.rate == 0 %} (exonéré){% endif %}{% endif %}</td>
+          <td class="text-end">{{ r.base|floatformat:"2g" }} €</td><td class="text-end">{{ r.vat|floatformat:"2g" }} €</td></tr>
+      {% empty %}
+        <tr><td colspan="3" class="text-muted">Aucune opération soumise à TVA sur la période.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="fw-bold"><td>Total</td><td class="text-end">{{ vat.base|floatformat:"2g" }} €</td><td class="text-end">{{ vat.collected|floatformat:"2g" }} €</td></tr>
+    </tfoot>
+  </table>
+</div>
+
+<div class="glass-card">
+  <div class="d-flex justify-content-between"><span>TVA collectée</span><span>{{ vat.collected|floatformat:"2g" }} €</span></div>
+  {% if vat.autoliquidated %}<div class="d-flex justify-content-between"><span>TVA autoliquidée (4452)</span><span>{{ vat.autoliquidated|floatformat:"2g" }} €</span></div>{% endif %}
+  <div class="d-flex justify-content-between"><span>TVA déductible (4456)</span><span>− {{ vat.deductible|floatformat:"2g" }} €</span></div>
+  {% if vat.pending %}<div class="d-flex justify-content-between small text-muted"><span>Pour mémoire : TVA sur prestations facturées, en attente d'encaissement (4458) au {{ vat.end|date:"d/m/Y" }}</span><span>{{ vat.pending|floatformat:"2g" }} €</span></div>{% endif %}
+  <hr>
+  <div class="d-flex justify-content-between fw-bold fs-5">
+    <span>{% if vat.net >= 0 %}TVA à payer{% else %}Crédit de TVA{% endif %}</span><span>{{ vat.net|floatformat:"2g" }} €</span>
+  </div>
+</div>
+<div class="glass-card mt-4">
+  <div class="d-flex justify-content-between align-items-start">
+    <h2 class="h5">Aide à la déclaration CA3 (3310-CA3)</h2>
+    {% if perms.accounting.export_data %}<a class="small no-print" href="?{{ request.GET.urlencode }}&format=ca3">CSV</a>{% endif %}
+  </div>
+  <p class="small text-muted">Lignes du formulaire, établies depuis la comptabilité : à contrôler avant télédéclaration. Les opérations
+    non imposables (taux 0) sont à ventiler entre exportations (04), autres opérations (05) et livraisons intracommunautaires (06).</p>
+  <table class="table table-sm align-middle mb-0">
+    <thead><tr><th style="width:4rem">Ligne</th><th>Libellé</th><th class="text-end">Base HT</th><th class="text-end">Taxe</th></tr></thead>
+    <tbody>
+      <tr class="table-light"><td colspan="4" class="fw-semibold small">A. Montant des opérations réalisées</td></tr>
+      {% for r in ca3.operations %}<tr><td>{{ r.code }}</td><td>{{ r.label }}</td><td class="text-end">{{ r.base|floatformat:"2g" }}</td><td></td></tr>{% endfor %}
+      <tr class="table-light"><td colspan="4" class="fw-semibold small">B. Décompte de la TVA à payer — TVA brute</td></tr>
+      {% for r in ca3.gross %}<tr><td>{{ r.code }}</td><td>{{ r.label }}</td><td class="text-end">{{ r.base|floatformat:"2g" }}</td><td class="text-end">{{ r.tax|floatformat:"2g" }}</td></tr>{% endfor %}
+      <tr class="fw-semibold"><td>16</td><td>Total de la TVA brute due</td><td></td><td class="text-end">{{ ca3.total_gross|floatformat:"2g" }}</td></tr>
+      {% if ca3.intracom_vat %}<tr><td>17</td><td>dont TVA sur acquisitions intracommunautaires</td><td></td><td class="text-end">{{ ca3.intracom_vat|floatformat:"2g" }}</td></tr>{% endif %}
+      <tr class="table-light"><td colspan="4" class="fw-semibold small">TVA déductible</td></tr>
+      <tr><td>19</td><td>Biens constituant des immobilisations</td><td></td><td class="text-end">{{ ca3.line19|floatformat:"2g" }}</td></tr>
+      <tr><td>20</td><td>Autres biens et services</td><td></td><td class="text-end">{{ ca3.line20|floatformat:"2g" }}</td></tr>
+      <tr><td>22</td><td>Report du crédit de la déclaration précédente</td><td></td><td class="text-end">{{ ca3.line22|floatformat:"2g" }}</td></tr>
+      <tr class="fw-semibold"><td>23</td><td>Total TVA déductible</td><td></td><td class="text-end">{{ ca3.total_deductible|floatformat:"2g" }}</td></tr>
+    </tbody>
+    <tfoot>
+      {% if ca3.credit %}<tr class="fw-bold"><td>25</td><td>Crédit de TVA (à reporter, ligne 27, ou à rembourser)</td><td></td><td class="text-end">{{ ca3.credit|floatformat:"2g" }}</td></tr>
+      {% else %}<tr class="fw-bold"><td>28</td><td>TVA nette due</td><td></td><td class="text-end">{{ ca3.due|floatformat:"2g" }}</td></tr>{% endif %}
+    </tfoot>
+  </table>
+</div>
+
+{% with s=settlement %}
+<div class="glass-card mt-4">
+  <h2 class="h5">Liquidation de la TVA au {{ s.end|date:"d/m/Y" }}</h2>
+  <p class="small text-muted">Écriture de déclaration (journal OD) : solde des comptes de TVA collectée et déductible à la fin de la
+    période (écritures validées), imputation du crédit reporté, puis TVA à décaisser ({{ s.payable_account.code }}) ou crédit
+    à reporter ({{ s.credit_account.code }}). Le paiement se saisit ensuite dans le journal de banque.</p>
+  {% if s.settlement %}
+    <div class="alert alert-success small mb-0">Liquidation passée : <a href="{% url 'accounting:entry_detail' s.settlement.pk %}">{{ s.settlement.number }}</a>.</div>
+  {% else %}
+    <table class="table table-sm mb-3">
+      <tbody>
+        {% for r in s.collected %}<tr><td>TVA collectée {{ r.account.code }} {{ r.account.name }}</td><td class="text-end">{{ r.amount|floatformat:"2g" }} €</td></tr>{% endfor %}
+        {% for r in s.deductible %}<tr><td>TVA déductible {{ r.account.code }} {{ r.account.name }}</td><td class="text-end">− {{ r.amount|floatformat:"2g" }} €</td></tr>{% endfor %}
+        {% if s.carried_credit %}<tr><td>Crédit de TVA reporté ({{ s.credit_account.code }})</td><td class="text-end">− {{ s.carried_credit|floatformat:"2g" }} €</td></tr>{% endif %}
+      </tbody>
+      <tfoot><tr class="fw-bold">{% if s.credit %}<td>Crédit de TVA à reporter</td><td class="text-end">{{ s.credit|floatformat:"2g" }} €</td>{% else %}<td>TVA à décaisser</td><td class="text-end">{{ s.due|floatformat:"2g" }} €</td>{% endif %}</tr></tfoot>
+    </table>
+    {% if s.later %}<div class="alert alert-warning small mb-0">Une liquidation postérieure existe déjà ({{ s.later.number }}) : celle-ci n'est plus possible.</div>
+    {% elif s.drafts %}<div class="alert alert-warning small mb-0">{{ s.drafts }} brouillon{{ s.drafts|pluralize }} mouvemente{{ s.drafts|pluralize:"nt" }} la TVA : à valider ou supprimer avant la liquidation.</div>
+    {% elif perms.accounting.add_transaction and perms.accounting.validate_transaction %}
+      <form method="post" onsubmit="return confirm('Passer et valider l’écriture de liquidation au {{ s.end|date:"d/m/Y" }} ?');">{% csrf_token %}
+        <button class="btn btn-sm btn-primary">Passer l'écriture de liquidation</button></form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endwith %}
+{% endblock %}

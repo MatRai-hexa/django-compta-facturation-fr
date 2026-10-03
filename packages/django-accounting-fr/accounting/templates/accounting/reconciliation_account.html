@@ -1,0 +1,104 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Lettrage {{ account.code }}{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Lettrage — {{ account.code }} {{ account.name }}</h1>
+    <div class="small text-muted">
+      <a href="{% url 'accounting:reconciliation' %}?account={{ account.code }}">‹ Tous les tiers</a>
+      {% if auxiliary is not None %} · {{ auxiliary_label|default:"(sans compte auxiliaire)" }}{% if auxiliary and auxiliary != auxiliary_label %} <span>{{ auxiliary }}</span>{% endif %}{% endif %}
+    </div>
+  </div>
+  <form method="get" class="no-print">
+    {% if auxiliary is not None %}<input type="hidden" name="aux" value="{{ auxiliary }}">{% endif %}
+    <div class="form-check small">
+      <input class="form-check-input" type="checkbox" name="all" value="1" id="all" {% if show_all %}checked{% endif %} onchange="this.form.submit()">
+      <label class="form-check-label" for="all">Afficher aussi les lignes lettrées</label>
+    </div>
+  </form>
+</div>
+
+<form method="post" id="reconcile-form">{% csrf_token %}
+<div class="glass-card mb-3">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th style="width:2rem"></th><th>Date</th><th>Écriture</th><th>Pièce</th><th>Libellé</th>{% if auxiliary is None %}<th>Tiers</th>{% endif %}
+        <th class="text-end">Débit</th><th class="text-end">Crédit</th><th>Lettrage</th></tr></thead>
+      <tbody>
+        {% for e in page %}
+          <tr>
+            <td>{% if not e.reconciliation_ref %}<input class="form-check-input js-line" type="checkbox" name="lines" value="{{ e.pk }}"
+                 data-debit="{{ e.debit|stringformat:'s' }}" data-credit="{{ e.credit|stringformat:'s' }}" aria-label="Sélectionner">{% endif %}</td>
+            <td>{{ e.transaction.date|date:"d/m/Y" }}</td>
+            <td><a href="{% url 'accounting:entry_detail' e.transaction_id %}">{{ e.transaction.number }}</a> <span class="small text-muted">{{ e.transaction.journal.code }}</span></td>
+            <td class="small">{{ e.transaction.reference }}</td>
+            <td>{{ e.label }}</td>
+            {% if auxiliary is None %}<td class="small"><a href="?aux={{ e.auxiliary_code|urlencode }}">{{ e.auxiliary_label|default:e.auxiliary_code|default:"—" }}</a></td>{% endif %}
+            <td class="text-end">{% if e.debit %}{{ e.debit|floatformat:"2g" }}{% endif %}</td>
+            <td class="text-end">{% if e.credit %}{{ e.credit|floatformat:"2g" }}{% endif %}</td>
+            <td class="small">{% if e.reconciliation_ref %}<strong>{{ e.reconciliation_ref }}</strong> {{ e.reconciled_at|date:"d/m/Y" }}
+              {% if perms.accounting.reconcile_entries %}<button class="btn btn-link btn-sm p-0 ms-1 no-print" name="unreconcile" value="{{ e.reconciliation_ref }}"
+                onclick="return confirm('Défaire le lettrage {{ e.reconciliation_ref }} ?');">délettrer</button>{% endif %}{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="text-muted">Aucune ligne à lettrer.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.has_other_pages %}
+    <div class="d-flex gap-2 mt-2 small">
+      {% if page.has_previous %}<a href="?{% if auxiliary is not None %}aux={{ auxiliary|urlencode }}&{% endif %}{% if show_all %}all=1&{% endif %}page={{ page.previous_page_number }}">‹ Précédentes</a>{% endif %}
+      <span class="text-muted">Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a href="?{% if auxiliary is not None %}aux={{ auxiliary|urlencode }}&{% endif %}{% if show_all %}all=1&{% endif %}page={{ page.next_page_number }}">Suivantes ›</a>{% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% if perms.accounting.reconcile_entries %}
+<div class="glass-card bo-sticky-actions d-flex flex-wrap align-items-center gap-3 no-print">
+  <div class="small">Sélection : débit <strong id="sel-debit">0,00</strong> · crédit <strong id="sel-credit">0,00</strong> ·
+    écart <strong id="sel-gap">0,00</strong></div>
+  <div class="ms-auto d-flex gap-2">
+    <button class="btn btn-sm btn-primary" name="action" value="reconcile" id="btn-reconcile" disabled>Lettrer</button>
+    {% if perms.accounting.validate_transaction %}
+      <button class="btn btn-sm btn-outline-warning" name="action" value="write_off" id="btn-write-off" disabled
+              title="Passe l'écart en charge (658) ou en produit (758) par une écriture d'OD, puis lettre"
+              onclick="return confirm('Solder l\'écart par une écriture d\'opérations diverses, puis lettrer ?');">Solder l'écart et lettrer</button>
+      <button class="btn btn-sm btn-outline-light" name="action" value="write_off_exchange"
+              title="Créance ou dette en devise : passe l'écart en perte (666) ou en gain (766) de change, puis lettre"
+              onclick="return confirm('Solder l\'écart en différence de change, puis lettrer ?');">Écart de change</button>
+    {% endif %}
+  </div>
+  <div class="w-100 small text-muted d-none d-md-block">Les lignes lettrées ensemble doivent s'équilibrer. Un écart de {{ gap_limit|floatformat:"2g" }} € au plus (règlement arrondi, frais retenus) peut être soldé.</div>
+</div>
+{% endif %}
+</form>
+
+<script>
+(function () {
+  const boxes = document.querySelectorAll(".js-line");
+  const fmt = (cents) => (cents / 100).toLocaleString("fr-FR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const cents = (value) => Math.round(parseFloat(value || "0") * 100);
+  const limit = cents("{{ gap_limit|stringformat:'s' }}");
+  function update() {
+    let debit = 0, credit = 0, count = 0;
+    boxes.forEach((box) => { if (box.checked) { debit += cents(box.dataset.debit); credit += cents(box.dataset.credit); count++; } });
+    const gap = debit - credit;
+    document.getElementById("sel-debit").textContent = fmt(debit);
+    document.getElementById("sel-credit").textContent = fmt(credit);
+    const gapEl = document.getElementById("sel-gap");
+    gapEl.textContent = fmt(Math.abs(gap));
+    gapEl.className = gap ? "text-warning" : "text-success";
+    const reconcile = document.getElementById("btn-reconcile");
+    if (reconcile) reconcile.disabled = count < 2 || gap !== 0;
+    const writeOff = document.getElementById("btn-write-off");
+    if (writeOff) writeOff.disabled = count < 1 || gap === 0 || Math.abs(gap) > limit;
+  }
+  boxes.forEach((box) => box.addEventListener("change", update));
+  if (document.getElementById("sel-debit")) update();
+})();
+</script>
+{% endblock %}

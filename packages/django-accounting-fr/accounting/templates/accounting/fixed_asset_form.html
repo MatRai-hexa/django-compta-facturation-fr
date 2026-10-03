@@ -1,0 +1,28 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}{% if asset %}{{ asset }}{% else %}Nouvelle immobilisation{% endif %}{% endblock %}
+
+{% block accounting_content %}
+<h1 class="h3 mb-3">{% if asset %}{{ asset }}{% else %}Nouvelle immobilisation{% endif %}</h1>
+<div class="glass-card" style="max-width: 760px;">
+  <form method="post" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="row g-3">
+      {% for field in form %}
+        <div class="{% if field.name == 'label' or field.name == 'note' %}col-12{% else %}col-md-6{% endif %}">
+          <label class="form-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary btn-sm">Enregistrer</button>
+      <a class="btn btn-link btn-sm" href="{% if asset %}{% url 'accounting:fixed_asset_detail' asset.pk %}{% else %}{% url 'accounting:fixed_assets' %}{% endif %}">Annuler</a>
+    </div>
+  </form>
+  <p class="small text-muted mt-3 mb-0">Le registre ne passe pas l'écriture d'acquisition : saisissez la facture du fournisseur
+    (débit du compte d'immobilisation, TVA déductible, crédit 404) comme d'habitude. Une fois l'amortissement commencé, le plan ne change plus.</p>
+</div>
+{% endblock %}

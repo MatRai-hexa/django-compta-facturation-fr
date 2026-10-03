@@ -1,0 +1,53 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: Python ${{ matrix.python }} · ${{ matrix.database }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+        database: [sqlite, postgresql]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: compta
+          POSTGRES_PASSWORD: compta
+          POSTGRES_DB: compta
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U compta" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: ${{ matrix.database == 'postgresql' && 'postgres://compta:compta@localhost:5432/compta' || '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -e packages/django-accounting-fr -e packages/django-facturation-fr dj-database-url "psycopg[binary]>=3.2"
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test accounting invoicing
+
+  build:
+    name: Construction des paquets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build packages/django-accounting-fr && python -m build packages/django-facturation-fr
+      - name: Données embarquées (gabarits, schémas XSD, licence)
+        run: |
+          python -m zipfile -l packages/django-accounting-fr/dist/*.whl | grep -q "accounting/templates/accounting/dashboard.html"
+          python -m zipfile -l packages/django-facturation-fr/dist/*.whl | grep -q "invoicing/xsd/ereporting/ereporting.xsd"
+          python -m zipfile -l packages/django-facturation-fr/dist/*.whl | grep -q "LICENSE"

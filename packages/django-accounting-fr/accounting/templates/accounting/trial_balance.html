@@ -1,0 +1,44 @@
+{% extends "accounting/_base.html" %}
+
+{% block page_title %}Balance générale{% endblock %}
+
+{% block accounting_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Balance générale</h1>
+  {% if perms.accounting.export_data %}<a class="btn btn-sm btn-outline-light" href="?{{ request.GET.urlencode }}&format=csv">Exporter en CSV</a>{% endif %}
+</div>
+{% include "accounting/_period_filter.html" with show_validated=True %}
+
+<div class="glass-card">
+  {% if not balance.is_balanced %}<div class="alert alert-danger">Balance déséquilibrée : des brouillons sont incomplets.</div>{% endif %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr><th>Compte</th><th>Intitulé</th><th class="text-end">Débit</th><th class="text-end">Crédit</th><th class="text-end">Solde débiteur</th><th class="text-end">Solde créditeur</th></tr>
+      </thead>
+      <tbody>
+        {% for group in balance.classes %}
+          <tr class="table-active"><td colspan="6" class="fw-semibold">Classe {{ group.code }} — {{ group.label }}</td></tr>
+          {% for row in group.accounts %}
+            <tr>
+              <td><a href="{% url 'accounting:general_ledger' row.account.code %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">{{ row.account.code }}</a></td>
+              <td>{{ row.account.name }}</td>
+              <td class="text-end">{{ row.debit|floatformat:"2g" }}</td>
+              <td class="text-end">{{ row.credit|floatformat:"2g" }}</td>
+              <td class="text-end">{% if row.balance_debit %}{{ row.balance_debit|floatformat:"2g" }}{% endif %}</td>
+              <td class="text-end">{% if row.balance_credit %}{{ row.balance_credit|floatformat:"2g" }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+          <tr class="small text-muted"><td colspan="2" class="text-end">Total classe {{ group.code }}</td>
+            <td class="text-end">{{ group.debit|floatformat:"2g" }}</td><td class="text-end">{{ group.credit|floatformat:"2g" }}</td><td colspan="2"></td></tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted">Aucun mouvement sur la période.</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold"><td colspan="2">Total général</td><td class="text-end">{{ balance.total.debit|floatformat:"2g" }}</td><td class="text-end">{{ balance.total.credit|floatformat:"2g" }}</td><td colspan="2"></td></tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}
