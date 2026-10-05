@@ -80,7 +80,7 @@ Les paramètres saisis dans **Paramètres de facturation** priment sur `SELLER`.
   validé contre les XSD officiels fournis dans `invoicing/xsd/ereporting`) — deux transmissions par période :
   - *transactions* : ventes aux particuliers par jour, devise et catégorie (TLB1 biens, TPS1 services, TNT1 hors
     champ de la TVA française), ventilées par taux, avoirs déduits (10.3) ; factures aux professionnels établis
-    hors de France, une à une (10.1) ;
+    hors de France, une à une, avec leurs remises et leurs lignes (10.1) ;
   - *encaissements* des prestations de services (sauf option pour la TVA sur les débits) : par jour pour les
     particuliers (10.4), par facture pour les professionnels étrangers (10.2), remboursements en négatif ;
   - périodes selon le **régime de TVA** (réel mensuel : transactions par décade, encaissements par mois ; réel
@@ -104,9 +104,8 @@ statuts reportés à la main) et **Plateforme simulée** (tests). Une plateforme
   par le code et les tests. La conformité PDF/A n'a pas été vérifiée avec veraPDF.
 - Aucun connecteur vers une plateforme agréée réelle n'est encore fourni (choix du prestataire à faire) ;
   en dépôt manuel, le flux 10 (XML) se télécharge pour être déposé sur le portail de la plateforme.
-- E-reporting : les lignes de facture et les remises du bloc 10.1 (obligatoires en trajectoire « cible », à partir
-  du 01/09/2027) ne sont pas encore transmises ; les acomptes (TVA exigible à l'encaissement sur les livraisons de
-  biens) et le régime de la marge (TMA1) ne sont pas gérés.
+- E-reporting : les acomptes (TVA exigible à l'encaissement sur les livraisons de biens) et le régime de la marge
+  (TMA1) ne sont pas gérés.
 
 ## Tests
 

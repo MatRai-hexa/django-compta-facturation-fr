@@ -5,7 +5,7 @@ E-reporting au format officiel : flux 10 des spécifications externes de la fact
 Deux transmissions distinctes par période (règle G6.29) :
 
 - transactions (bloc TransactionsReport) : 10.1, une occurrence par facture à un professionnel
-  établi hors de France ; 10.3, ventes aux particuliers agrégées par jour, devise et catégorie
+  établi hors de France, avec ses remises et ses lignes (quantité, prix net, désignation) ; 10.3, ventes aux particuliers agrégées par jour, devise et catégorie
   (TLB1 biens, TPS1 services, TNT1 hors du champ de la TVA française) ;
 - encaissements (bloc PaymentsReport), pour les seules prestations de services et sauf option pour
   la TVA d'après les débits : 10.2 par facture à un professionnel étranger, 10.4 par jour pour les
@@ -308,6 +308,13 @@ def _invoice(parent, invoice, settings, seller):
     _el(_el(buyer, "PostalAddress"), "CountryId", invoice.buyer_country.upper())
     if invoice.sale_date and invoice.sale_date != invoice.issue_date:
         _el(_el(element, "Delivery"), "Date", _day(invoice.sale_date))  # règle G1.38
+    categories = {rate: _tax_category(invoice, rate, {n for n, r in breakdown if r == rate}) for _, rate in breakdown}
+    for allowance in invoice.allowances:  # remises au niveau du document (TG-20), montants HT
+        rate = rate_of(allowance["vat_rate"])
+        charge = _el(element, "AllowanceCharge", ChargeIndicator="false")
+        _el(charge, "Amount", _money(allowance["amount"]))
+        _el(charge, "TaxCategoryCode", categories[rate][0])
+        _el(charge, "TaxPercent", _percent(rate))
     totals = _el(element, "MonetaryTotal")
     _el(totals, "TaxExclusiveAmount", _money(invoice.total_ht))
     _el(totals, "TaxAmount", _money(invoice.total_vat), CurrencyCode="EUR")
@@ -317,12 +324,17 @@ def _invoice(parent, invoice, settings, seller):
         _el(sub, "TaxableAmount", _money(row["base"]))
         _el(sub, "TaxAmount", _money(row["vat"]))
         tax = _el(sub, "TaxCategory")
-        code, reason, reason_code = _tax_category(invoice, rate, {n for n, r in breakdown if r == rate})
+        code, reason, reason_code = categories[rate]
         _el(tax, "Code", code)
         _el(tax, "Percent", _percent(rate))
         if reason:
             _el(tax, "TaxExemptionReason", reason)
             _el(tax, "TaxExemptionReasonCode", reason_code)
+    for line in invoice.lines.all():  # lignes de facture (TG-24)
+        line_el = _el(element, "Line")
+        _el(line_el, "BilledQuantity", f"{line.quantity.normalize():f}", UnitCode=line.unit)
+        _el(_el(line_el, "Price"), "PriceAmount", f"{line.net_price.normalize():f}")  # prix unitaire net HT
+        _el(_el(line_el, "Product"), "Name", line.description)
 
 
 def _transactions(root, report, invoices, settings, seller):
