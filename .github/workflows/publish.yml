@@ -1,7 +1,8 @@
 name: Publication sur PyPI
 
-# Publication par « Trusted Publishing » : PyPI fait confiance à ce workflow (environnement « pypi ») ;
-# aucun mot de passe ni jeton n'est stocké. Déclenchée par la création d'une release GitHub.
+# Publication par « Trusted Publishing » : PyPI fait confiance à ce workflow, un environnement par paquet
+# (« pypi-django-accounting-fr », « pypi-django-facturation-fr ») : un jeton PyPI ne vaut que pour un projet.
+# Aucun mot de passe ni jeton n'est stocké. Déclenchée par la création d'une release GitHub.
 on:
   release:
     types: [published]
@@ -22,20 +23,25 @@ jobs:
           for p in packages/*/pyproject.toml; do
             grep -q "^version = \"$tag\"$" "$p" || { echo "::error::$p n'est pas en version $tag"; exit 1; }
           done
-      - run: python -m build packages/django-accounting-fr --outdir dist && python -m build packages/django-facturation-fr --outdir dist
-      - run: twine check --strict dist/*
+      - run: |
+          for p in django-accounting-fr django-facturation-fr; do python -m build packages/$p --outdir dist/$p; done
+      - run: twine check --strict dist/*/*
       - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
 
   publish:
-    name: Envoi sur PyPI
+    name: Envoi sur PyPI (${{ matrix.package }})
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [django-accounting-fr, django-facturation-fr]
     environment:
-      name: pypi
-      url: https://pypi.org/project/django-accounting-fr/
+      name: pypi-${{ matrix.package }}
+      url: https://pypi.org/project/${{ matrix.package }}/
     permissions:
       id-token: write
     steps:
@@ -44,3 +50,5 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/${{ matrix.package }}/
