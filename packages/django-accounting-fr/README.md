@@ -60,7 +60,7 @@ api.entries_for("invoice", "F-001")     # écritures liées à la pièce
 - Une erreur de paramétrage (taux de TVA sans compte, exercice clôturé…) lève
   `api.AccountingError`.
 
-Pour les écritures libres : `accounting.posting.post_entry(journal_code, day, description, lines, ...)`.
+Pour les écritures libres : `accounting_fr.posting.post_entry(journal_code, day, description, lines, ...)`.
 `posting.with_treasury_counterpart(journal, lines)` complète une saisie dans un journal de banque
 par sa contrepartie sur le compte du journal.
 
@@ -133,7 +133,7 @@ Document de travail : la liasse fiscale et sa transmission EDI-TDFC restent du r
 ## Inaltérabilité : empreinte chaînée
 
 À sa validation, chaque écriture reçoit un rang (`seal_index`) et une empreinte SHA-256 (`seal`) de son contenu
-(numéro, journal, dates, pièce, libellé, montant, lignes) et de l'empreinte précédente (`accounting.seal`).
+(numéro, journal, dates, pièce, libellé, montant, lignes) et de l'empreinte précédente (`accounting_fr.seal`).
 Une écriture validée modifiée, supprimée ou insérée après coup, même directement en base, casse la chaîne.
 La clôture d'un exercice enregistre le dernier maillon comme sceau de l'exercice (`FiscalPeriod.closing_seal`,
 affiché et journalisé) : conservé hors du logiciel, il prouve que rien n'a été réécrit, même par quelqu'un qui
@@ -226,7 +226,7 @@ python manage.py check_fec --year 2026 --output fec/  # FEC de l'exercice, gén�
 
 Règles de structure de l'article A47 A-1 du LPF (zones, formats, couples de zones, équilibre,
 numérotation continue et chronologique, exercice, nom de fichier) ; aussi depuis la page des exports.
-`accounting.fec_check.check_fec(contenu, nom)` renvoie erreurs, avertissements et statistiques.
+`accounting_fr.fec_check.check_fec(contenu, nom)` renvoie erreurs, avertissements et statistiques.
 
 ## Tests
 

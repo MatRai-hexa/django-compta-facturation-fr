@@ -67,7 +67,7 @@ Les paramètres saisis dans **Paramètres de facturation** priment sur `SELLER`.
 
 ## Facturation électronique (plateforme agréée)
 
-`invoicing.einvoicing` et `invoicing.platforms` :
+`facturation_fr.einvoicing` et `facturation_fr.platforms` :
 
 - **aiguillage** : facture à un professionnel établi en France (SIREN de l'acheteur) → facture électronique,
   déposée sur la plateforme ; vente à un particulier ou à un professionnel étranger → **e-reporting** ;
@@ -76,8 +76,8 @@ Les paramètres saisis dans **Paramètres de facturation** priment sur `SELLER`.
 - **factures reçues** : import ou réception d'un PDF Factur-X, d'un XML CII ou UBL, lecture des données EN 16931
   (fournisseur, montants, TVA par taux, échéance), contrôle du destinataire, sans doublon ; statuts de l'acheteur
   (prise en charge, approuvée, en litige, refusée avec motif…) ; XML lu sans entités externes ni accès réseau ;
-- **e-reporting** au format officiel (`invoicing.ereporting`, flux 10 des spécifications externes DGFiP v3.2,
-  validé contre les XSD officiels fournis dans `invoicing/xsd/ereporting`) — deux transmissions par période :
+- **e-reporting** au format officiel (`facturation_fr.ereporting`, flux 10 des spécifications externes DGFiP v3.2,
+  validé contre les XSD officiels fournis dans `facturation_fr/xsd/ereporting`) — deux transmissions par période :
   - *transactions* : ventes aux particuliers par jour, devise et catégorie (TLB1 biens, TPS1 services, TNT1 hors
     champ de la TVA française), ventilées par taux, avoirs déduits (10.3) ; factures aux professionnels établis
     hors de France, une à une, avec leurs remises et leurs lignes (10.1) ;
@@ -93,7 +93,7 @@ Les paramètres saisis dans **Paramètres de facturation** priment sur `SELLER`.
 
 Plateformes fournies : **Dépôt manuel** (fichiers à déposer sur le portail de n'importe quelle plateforme agréée,
 statuts reportés à la main) et **Plateforme simulée** (tests). Une plateforme réelle s'ajoute en sous-classant
-`invoicing.platforms.Platform` (`send_invoice`, `fetch_events`, `send_payment`, `fetch_incoming`,
+`facturation_fr.platforms.Platform` (`send_invoice`, `fetch_events`, `send_payment`, `fetch_incoming`,
 `send_buyer_status`, `send_ereport`) et en la déclarant dans `INVOICING["PLATFORMS"]`, ses identifiants dans
 `INVOICING["PLATFORM_OPTIONS"]`. `INVOICING["ON_RECEIVED_STATUS"]` permet de comptabiliser les factures reçues.
 

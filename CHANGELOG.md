@@ -1,9 +1,10 @@
 # Journal des versions
 
-## Non publié
+## 0.3.0
 
 - E-reporting 10.1 : les factures aux professionnels établis hors de France transmettent leurs remises (TG-20)
   et leurs lignes (TG-24 : quantité et unité, prix unitaire net HT, désignation), obligatoires à partir du 01/09/2027.
+- README : chemins des modules mis à jour (`accounting_fr`, `facturation_fr`).
 
 ## 0.2.0
 
