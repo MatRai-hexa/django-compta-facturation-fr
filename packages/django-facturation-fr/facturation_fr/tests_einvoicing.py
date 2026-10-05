@@ -229,6 +229,20 @@ class EReportingTest(TestCase):
         self.assertEqual((swiss.findtext("Buyer/CompanyId"), swiss.find("Buyer/CompanyId").attrib["schemeId"],
                           swiss.findtext("TaxSubTotal/TaxCategory/Code")), ("CHUhren AG", "0227", "G"))
 
+    def test_foreign_business_invoice_lines_and_allowances(self):
+        invoice = api.issue_invoice(
+            "de", GERMAN, [api.Item("Lot", 2, D("50.00"), D("0")), api.Item("Câble", D("1.5"), D("3.333333"), D("0"), unit="MTR")],
+            [api.Allowance("Remise fidélité", D("10.00"), D("0"))], prices_include_tax=False, issue_date=date(2026, 9, 5))
+        element = xml_of(einvoicing.build_ereport(date(2026, 9, 1), date(2026, 9, 10))).find("TransactionsReport/Invoice")
+        self.assertEqual([child.tag for child in element][-5:], ["AllowanceCharge", "MonetaryTotal", "TaxSubTotal", "Line", "Line"])
+        allowance = element.find("AllowanceCharge")
+        self.assertEqual((allowance.get("ChargeIndicator"), allowance.findtext("Amount"), allowance.findtext("TaxCategoryCode"),
+                          allowance.findtext("TaxPercent")), ("false", "10.00", "K", "0"))
+        self.assertEqual(element.findtext("MonetaryTotal/TaxExclusiveAmount"), str(invoice.total_ht))
+        lines = [(line.findtext("BilledQuantity"), line.find("BilledQuantity").get("UnitCode"), line.findtext("Price/PriceAmount"),
+                  line.findtext("Product/Name")) for line in element.findall("Line")]
+        self.assertEqual(lines, [("2", "C62", "50", "Lot"), ("1.5", "MTR", "3.333333", "Câble")])
+
     def test_payments_of_services_only(self):
         day = date(2026, 9, 12)
         api.issue_invoice("goods", CUSTOMER, [api.Item("T-shirt", 1, D("24.00"))], issue_date=day, paid_at=day)
